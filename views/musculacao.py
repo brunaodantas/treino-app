@@ -181,6 +181,16 @@ def _render_session(state: dict, save_fn):
                         key=f"w_{name}_{i}",
                     )
                     s["weight"] = w
+                    if last and i < len(last):
+                        last_w = float(last[i].get("weight", 0))
+                        if last_w > 0:
+                            diff = w - last_w
+                            if diff > 0:
+                                st.markdown(f"<span style='color:#4CAF50;font-size:0.78rem'>↑ +{diff:g}kg</span>", unsafe_allow_html=True)
+                            elif diff < 0:
+                                st.markdown(f"<span style='color:#F44336;font-size:0.78rem'>↓ {diff:g}kg</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<span style='color:#888;font-size:0.78rem'>= igual</span>", unsafe_allow_html=True)
                 with c_r:
                     r = st.number_input(
                         "Reps",
