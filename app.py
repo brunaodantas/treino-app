@@ -12,6 +12,10 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+/* Esconde barra superior e rodapé do Streamlit */
+header[data-testid="stHeader"] { display: none; }
+footer { display: none; }
+#MainMenu { display: none; }
 /* Botões maiores para toque */
 .stButton > button {
     min-height: 3rem;
