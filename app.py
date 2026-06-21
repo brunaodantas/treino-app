@@ -1,0 +1,166 @@
+import streamlit as st
+import json
+import os
+from datetime import date, timedelta
+
+st.set_page_config(
+    page_title="Treino Hub",
+    page_icon="🏋️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE = os.path.join(BASE_DIR, "state.json")
+
+# ── Default state ──────────────────────────────────────────────────────────────
+def _last_monday() -> str:
+    today = date.today()
+    return str(today - timedelta(days=today.weekday()))
+
+DEFAULT_STATE = {
+    "current_index": 0,
+    "adaptation_week_override": None,
+    "workout_log": [],
+    "app_start_date": str(date.today()),
+    "running_week_start": _last_monday(),
+    "running_base_km": 3.0,
+    "use_e_next": False,
+}
+
+# ── State persistence ──────────────────────────────────────────────────────────
+def load_state() -> dict:
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, encoding="utf-8") as f:
+                saved = json.load(f)
+            # Merge with defaults so new keys always exist
+            merged = {**DEFAULT_STATE, **saved}
+            return merged
+        except Exception:
+            pass
+    return DEFAULT_STATE.copy()
+
+
+def save_state(state: dict):
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.warning(f"Não foi possível salvar o estado: {e}")
+
+
+# ── Session state bootstrap ────────────────────────────────────────────────────
+if "app_state" not in st.session_state:
+    st.session_state.app_state = load_state()
+
+if "strava_df" not in st.session_state:
+    st.session_state.strava_df = None
+
+if "hevy_df" not in st.session_state:
+    st.session_state.hevy_df = None
+
+if "health_data" not in st.session_state:
+    st.session_state.health_data = None
+
+
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.title("🏋️ Treino Hub")
+    st.caption("Bruno · brunaodnts")
+    st.markdown("---")
+
+    st.subheader("📁 Importar Dados")
+
+    strava_upload = st.file_uploader(
+        "Strava CSV", type=["csv"], key="strava_upload",
+        help="activities.csv da exportação do Strava"
+    )
+    hevy_upload = st.file_uploader(
+        "Hevy CSV", type=["csv"], key="hevy_upload",
+        help="CSV exportado pelo app Hevy"
+    )
+    health_upload = st.file_uploader(
+        "Apple Health XML", type=["xml"], key="health_upload",
+        help="exportar.xml do Apple Health (1.5 GB — use localmente)"
+    )
+
+    st.markdown("---")
+    st.subheader("💾 Estado")
+    state_json = json.dumps(st.session_state.app_state, ensure_ascii=False, indent=2)
+    st.download_button(
+        "⬇️ Baixar estado (state.json)",
+        data=state_json,
+        file_name="state.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+    state_restore = st.file_uploader(
+        "⬆️ Restaurar estado", type=["json"], key="state_restore",
+        help="Carregue um state.json salvo anteriormente"
+    )
+    if state_restore is not None:
+        try:
+            uploaded = json.load(state_restore)
+            merged = {**DEFAULT_STATE, **uploaded}
+            st.session_state.app_state = merged
+            save_state(merged)
+            st.success("✅ Estado restaurado!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao restaurar estado: {e}")
+
+    st.markdown("---")
+    st.caption("v1.0 · Streamlit · local + cloud")
+
+
+# ── Process uploads ────────────────────────────────────────────────────────────
+if strava_upload and st.session_state.strava_df is None:
+    from parsers.strava import parse_strava
+    with st.spinner("Processando Strava..."):
+        st.session_state.strava_df = parse_strava(strava_upload)
+    if st.session_state.strava_df is not None:
+        st.toast("✅ Strava carregado!", icon="🏃")
+
+if hevy_upload and st.session_state.hevy_df is None:
+    from parsers.hevy import parse_hevy
+    with st.spinner("Processando Hevy..."):
+        st.session_state.hevy_df = parse_hevy(hevy_upload)
+    if st.session_state.hevy_df is not None:
+        st.toast("✅ Hevy carregado!", icon="🏋️")
+
+if health_upload and st.session_state.health_data is None:
+    from parsers.health import parse_health
+    st.info("⏳ Processando Apple Health XML (~1.5 GB). Aguarde 1-2 minutos...")
+    bar = st.progress(0)
+    st.session_state.health_data = parse_health(health_upload, progress_bar=bar)
+    bar.empty()
+    st.toast("✅ Apple Health carregado!", icon="🍎")
+
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Dashboard",
+    "🏋️ Musculação",
+    "🏃 Corrida",
+    "📈 Analytics",
+])
+
+state = st.session_state.app_state
+
+with tab1:
+    from views.dashboard import render_dashboard
+    render_dashboard(state, save_state)
+
+with tab2:
+    from views.musculacao import render_musculacao
+    render_musculacao(state, st.session_state.hevy_df, save_state)
+
+with tab3:
+    from views.corrida import render_corrida
+    render_corrida(state, st.session_state.strava_df, st.session_state.health_data)
+
+with tab4:
+    from views.analytics import render_analytics
+    render_analytics(st.session_state.strava_df, st.session_state.health_data)
