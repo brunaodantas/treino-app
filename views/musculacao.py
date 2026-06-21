@@ -98,23 +98,23 @@ def render_musculacao(state: dict, hevy_df, save_fn):
 def _render_picker(state: dict, save_fn):
     st.markdown("### Qual treino hoje?")
 
-    cols = st.columns(5)
-    for i, letter in enumerate(["A", "B", "C", "D", "E"]):
-        with cols[i]:
-            conflict, _ = check_72h_conflict(state, letter)
-            label = f"**{letter}**\n\n{WORKOUT_DESC[letter]}"
-            btn = st.button(
-                f"Treino {letter}",
-                key=f"pick_{letter}",
-                use_container_width=True,
-                type="primary" if not conflict else "secondary",
-            )
-            st.caption(WORKOUT_DESC[letter])
-            if conflict:
-                st.caption("⚠️ 72h")
-            if btn:
-                _init_session(letter, state)
-                st.rerun()
+    # 2 colunas → cabe em celular
+    rows = [["A", "B"], ["C", "D"], ["E"]]
+    for row in rows:
+        cols = st.columns(len(row))
+        for col, letter in zip(cols, row):
+            with col:
+                conflict, _ = check_72h_conflict(state, letter)
+                warn = "  ⚠️" if conflict else ""
+                btn = st.button(
+                    f"**{letter}** — {WORKOUT_DESC[letter]}{warn}",
+                    key=f"pick_{letter}",
+                    use_container_width=True,
+                    type="secondary" if conflict else "primary",
+                )
+                if btn:
+                    _init_session(letter, state)
+                    st.rerun()
 
     # Histórico resumido
     history = state.get("workout_history", [])
@@ -172,34 +172,31 @@ def _render_session(state: dict, save_fn):
                 st.caption(f"Última vez: {last_hint}")
 
             for i, s in enumerate(ex_sets):
-                c_num, c_w, c_r, c_btn = st.columns([0.7, 2, 2, 1])
-                with c_num:
-                    st.markdown(f"**{i+1}**")
+                c_w, c_r, c_btn = st.columns([3, 3, 1.2])
                 with c_w:
                     w = st.number_input(
-                        "kg",
+                        f"S{i+1} — kg",
                         min_value=0.0, max_value=400.0, step=2.5,
                         value=float(s["weight"]),
                         key=f"w_{name}_{i}",
-                        label_visibility="collapsed",
                     )
                     s["weight"] = w
                 with c_r:
                     r = st.number_input(
-                        "reps",
+                        "Reps",
                         min_value=0, max_value=200, step=1,
                         value=int(s["reps"]),
                         key=f"r_{name}_{i}",
-                        label_visibility="collapsed",
                     )
                     s["reps"] = r
                 with c_btn:
+                    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
                     if s["done"]:
-                        if st.button("✅", key=f"chk_{name}_{i}", help="Desmarcar"):
+                        if st.button("✅", key=f"chk_{name}_{i}"):
                             s["done"] = False
                             st.rerun()
                     else:
-                        if st.button("○", key=f"chk_{name}_{i}", help="Marcar feito"):
+                        if st.button("○", key=f"chk_{name}_{i}"):
                             s["done"] = True
                             st.rerun()
 

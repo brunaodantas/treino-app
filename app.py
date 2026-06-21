@@ -6,9 +6,39 @@ from datetime import date, timedelta
 st.set_page_config(
     page_title="Treino Hub",
     page_icon="🏋️",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="centered",
+    initial_sidebar_state="collapsed",
 )
+
+st.markdown("""
+<style>
+/* Botões maiores para toque */
+.stButton > button {
+    min-height: 3rem;
+    font-size: 1rem;
+    border-radius: 10px;
+}
+/* Inputs numéricos maiores */
+.stNumberInput input {
+    font-size: 1.1rem;
+    height: 2.8rem;
+}
+/* Tabs roláveis em tela pequena */
+.stTabs [data-baseweb="tab-list"] {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+/* Expanders com padding confortável */
+.streamlit-expanderHeader {
+    font-size: 1rem;
+    padding: 0.6rem 0;
+}
+/* Remove padding lateral excessivo no mobile */
+@media (max-width: 768px) {
+    .block-container { padding: 1rem 0.75rem; }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

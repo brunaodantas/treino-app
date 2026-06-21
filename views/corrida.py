@@ -60,16 +60,18 @@ def _render_weekly_calendar():
         border = "2px solid #FF6B35" if is_today else "1px solid #444"
         days.append((d, name, icon, label, color, border))
 
-    cols = st.columns(7)
-    for col, (d, name, icon, label, color, border) in zip(cols, days):
-        with col:
-            st.markdown(
-                f"""<div style="background:{color};border:{border};border-radius:8px;
-                padding:8px;text-align:center;font-size:12px">
-                <b>{name}</b><br>{d.strftime('%d/%m')}<br>{icon}<br>
-                <span style="font-size:10px;color:#AAA">{label}</span></div>""",
-                unsafe_allow_html=True,
-            )
+    html_days = ""
+    for (d, name, icon, label, color, border) in days:
+        html_days += (
+            f'<div style="background:{color};border:{border};border-radius:8px;'
+            f'padding:6px 4px;text-align:center;font-size:11px;flex:1;min-width:40px">'
+            f'<b>{name}</b><br>{d.strftime("%d/%m")}<br>{icon}<br>'
+            f'<span style="font-size:9px;color:#AAA">{label}</span></div>'
+        )
+    st.markdown(
+        f'<div style="display:flex;gap:4px;overflow-x:auto">{html_days}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_progression_chart(state: dict):
