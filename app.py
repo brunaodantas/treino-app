@@ -23,6 +23,7 @@ DEFAULT_STATE = {
     "current_index": 0,
     "adaptation_week_override": None,
     "workout_log": [],
+    "workout_history": [],
     "app_start_date": str(date.today()),
     "running_week_start": _last_monday(),
     "running_base_km": 3.0,
