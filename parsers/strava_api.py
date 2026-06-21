@@ -92,5 +92,23 @@ def fetch_recent_activities(token: str, per_page: int = 50) -> list:
     return []
 
 
+def create_activity(token: str, name: str, sport_type: str, start_date_local: str,
+                    elapsed_time: int, description: str = "") -> dict:
+    """POST a new activity to Strava. Returns the created activity dict or error dict."""
+    resp = requests.post(
+        f"{STRAVA_API_BASE}/activities",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "name": name,
+            "sport_type": sport_type,
+            "start_date_local": start_date_local,
+            "elapsed_time": elapsed_time,
+            "description": description,
+            "trainer": 1,
+        },
+    )
+    return resp.json()
+
+
 def is_connected(state: dict) -> bool:
     return bool(state.get("strava_tokens", {}).get("access_token"))

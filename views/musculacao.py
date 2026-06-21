@@ -49,24 +49,35 @@ def _init_session(workout: str, state: dict):
 
 
 def _finish_workout(state: dict, save_fn):
+    from parsers.strava_api import is_connected, get_valid_token, create_activity
+
     session = st.session_state.active_workout
     workout = session["workout"]
+    now = datetime.now()
+    started_at = session.get("started_at", now.isoformat())
+
     volume = sum(
         s["weight"] * s["reps"]
         for sets in session["sets"].values()
         for s in sets
         if s["done"]
     )
+
+    try:
+        elapsed = int((now - datetime.fromisoformat(started_at)).total_seconds())
+    except Exception:
+        elapsed = 3600
+
     entry = {
-        "date": str(datetime.now().date()),
+        "date": str(now.date()),
         "workout": workout,
-        "completed_at": datetime.now().isoformat(),
+        "completed_at": now.isoformat(),
         "sets": session["sets"],
         "volume_total": round(volume, 1),
     }
     history = state.get("workout_history", [])
     history.insert(0, entry)
-    state["workout_history"] = history[:60]  # keep last 60 sessions
+    state["workout_history"] = history[:60]
 
     log_entry = {
         "date": entry["date"],
@@ -81,6 +92,24 @@ def _finish_workout(state: dict, save_fn):
     save_fn(state)
     st.session_state.active_workout = None
     st.success(f"✅ Treino {workout} finalizado! Volume: {volume:,.0f} kg")
+
+    # Salvar no Strava se conectado
+    if is_connected(state):
+        token = get_valid_token(state, save_fn)
+        if token:
+            desc = f"{WORKOUT_DESC[workout]}\nVolume total: {volume:,.0f} kg"
+            result = create_activity(
+                token=token,
+                name=f"Treino {workout} — Treino Hub",
+                sport_type="WeightTraining",
+                start_date_local=started_at[:19],
+                elapsed_time=max(elapsed, 60),
+                description=desc,
+            )
+            if result.get("id"):
+                st.toast("🟠 Salvo no Strava!", icon="✅")
+            else:
+                st.toast("Strava: não foi possível salvar", icon="⚠️")
 
 
 def render_musculacao(state: dict, hevy_df, save_fn):
