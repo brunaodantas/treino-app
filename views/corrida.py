@@ -136,12 +136,12 @@ def _render_run_history(strava_df, health_data):
                 "Data": r["data"].strftime("%d/%m/%Y") if hasattr(r["data"], "strftime") else str(r["data"])[:10],
                 "Distância": f"{r.get('distancia_km', 0):.2f} km",
             }
-            fc = r.get("fc_media")
-            if fc and str(fc) not in ("nan", "None", ""):
-                try:
-                    row["FC Média"] = f"{int(float(fc))} bpm"
-                except Exception:
-                    pass
+            try:
+                fc = float(r.get("fc_media") or 0)
+                if fc > 0:
+                    row["FC Média"] = f"{int(fc)} bpm"
+            except Exception:
+                pass
             if "pace_min_km" in r and r["pace_min_km"]:
                 pace = r["pace_min_km"]
                 mins = int(pace)
