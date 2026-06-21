@@ -150,31 +150,45 @@ with st.sidebar:
             st.error(f"Erro ao restaurar: {e}")
 
     st.markdown("---")
-    st.caption("v1.1 · treino-bruno.streamlit.app")
+
+    # Strava connection
+    from parsers.strava_api import get_auth_url, is_connected, get_client_id
+    if get_client_id():
+        st.subheader("🏃 Strava")
+        state = st.session_state.app_state
+        if is_connected(state):
+            athlete = state.get("strava_tokens", {}).get("athlete", {})
+            name = athlete.get("firstname", "Conectado")
+            st.success(f"✅ {name}")
+            if st.button("Desconectar", use_container_width=True):
+                state.pop("strava_tokens", None)
+                save_state(state)
+                st.rerun()
+        else:
+            auth_url = get_auth_url()
+            st.link_button("🔗 Conectar Strava", auth_url, use_container_width=True)
+        st.markdown("---")
+
+    st.caption("v1.2 · treino-bruno.streamlit.app")
 
 
-# ── Process uploads ────────────────────────────────────────────────────────────
-if strava_upload and st.session_state.strava_df is None:
-    from parsers.strava import parse_strava
-    with st.spinner("Processando Strava..."):
-        st.session_state.strava_df = parse_strava(strava_upload)
-    if st.session_state.strava_df is not None:
-        st.toast("✅ Strava carregado!", icon="🏃")
-
-if hevy_upload and st.session_state.hevy_df is None:
-    from parsers.hevy import parse_hevy
-    with st.spinner("Processando Hevy..."):
-        st.session_state.hevy_df = parse_hevy(hevy_upload)
-    if st.session_state.hevy_df is not None:
-        st.toast("✅ Hevy carregado!", icon="🏋️")
-
-if health_upload and st.session_state.health_data is None:
-    from parsers.health import parse_health
-    st.info("⏳ Processando Apple Health XML (~1.5 GB). Aguarde 1-2 minutos...")
-    bar = st.progress(0)
-    st.session_state.health_data = parse_health(health_upload, progress_bar=bar)
-    bar.empty()
-    st.toast("✅ Apple Health carregado!", icon="🍎")
+# ── Strava OAuth callback ──────────────────────────────────────────────────────
+_params = st.query_params
+if "code" in _params and not st.session_state.app_state.get("strava_tokens"):
+    from parsers.strava_api import exchange_code
+    _code = _params["code"]
+    _token_data = exchange_code(_code)
+    if "access_token" in _token_data:
+        st.session_state.app_state["strava_tokens"] = {
+            "access_token": _token_data["access_token"],
+            "refresh_token": _token_data["refresh_token"],
+            "expires_at": _token_data["expires_at"],
+            "athlete": _token_data.get("athlete", {}),
+        }
+        save_state(st.session_state.app_state)
+        st.query_params.clear()
+        st.toast("✅ Strava conectado!", icon="🏃")
+        st.rerun()
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
