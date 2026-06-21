@@ -86,14 +86,36 @@ def save_state(state: dict):
 if "app_state" not in st.session_state:
     st.session_state.app_state = load_state()
 
+STRAVA_CACHE = os.path.join(BASE_DIR, "data", "strava_cache.json")
+HEALTH_CACHE = os.path.join(BASE_DIR, "data", "health_cache.json")
+
 if "strava_df" not in st.session_state:
-    st.session_state.strava_df = None
+    if os.path.exists(STRAVA_CACHE):
+        import pandas as pd, json as _json
+        with open(STRAVA_CACHE, encoding="utf-8") as _f:
+            _records = _json.load(_f)
+        _df = pd.DataFrame(_records)
+        if "data" in _df.columns:
+            _df["data"] = pd.to_datetime(_df["data"], errors="coerce")
+        st.session_state.strava_df = _df
+    else:
+        st.session_state.strava_df = None
+
+if "health_data" not in st.session_state:
+    if os.path.exists(HEALTH_CACHE):
+        import json as _json
+        from collections import defaultdict
+        with open(HEALTH_CACHE, encoding="utf-8") as _f:
+            _hd = _json.load(_f)
+        _hd["daily_steps"] = defaultdict(float, _hd.get("daily_steps", {}))
+        _hd["daily_calories"] = defaultdict(float, _hd.get("daily_calories", {}))
+        _hd["daily_resting_hr"] = defaultdict(list, {k: [v] for k, v in _hd.get("daily_resting_hr", {}).items()})
+        st.session_state.health_data = _hd
+    else:
+        st.session_state.health_data = None
 
 if "hevy_df" not in st.session_state:
     st.session_state.hevy_df = None
-
-if "health_data" not in st.session_state:
-    st.session_state.health_data = None
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -102,34 +124,19 @@ with st.sidebar:
     st.caption("Bruno · brunaodnts")
     st.markdown("---")
 
-    st.subheader("📁 Importar Dados")
-
-    strava_upload = st.file_uploader(
-        "Strava CSV", type=["csv"], key="strava_upload",
-        help="activities.csv da exportação do Strava"
-    )
-    hevy_upload = st.file_uploader(
-        "Hevy CSV", type=["csv"], key="hevy_upload",
-        help="CSV exportado pelo app Hevy"
-    )
-    health_upload = st.file_uploader(
-        "Apple Health XML", type=["xml"], key="health_upload",
-        help="exportar.xml do Apple Health (1.5 GB — use localmente)"
-    )
-
-    st.markdown("---")
-    st.subheader("💾 Estado")
+    st.subheader("💾 Backup")
     state_json = json.dumps(st.session_state.app_state, ensure_ascii=False, indent=2)
     st.download_button(
-        "⬇️ Baixar estado (state.json)",
+        "⬇️ Baixar backup",
         data=state_json,
         file_name="state.json",
         mime="application/json",
         use_container_width=True,
+        help="Salva seu histórico de treinos",
     )
     state_restore = st.file_uploader(
-        "⬆️ Restaurar estado", type=["json"], key="state_restore",
-        help="Carregue um state.json salvo anteriormente"
+        "⬆️ Restaurar backup", type=["json"], key="state_restore",
+        help="Carregue um backup salvo anteriormente"
     )
     if state_restore is not None:
         try:
@@ -137,13 +144,13 @@ with st.sidebar:
             merged = {**DEFAULT_STATE, **uploaded}
             st.session_state.app_state = merged
             save_state(merged)
-            st.success("✅ Estado restaurado!")
+            st.success("✅ Backup restaurado!")
             st.rerun()
         except Exception as e:
-            st.error(f"Erro ao restaurar estado: {e}")
+            st.error(f"Erro ao restaurar: {e}")
 
     st.markdown("---")
-    st.caption("v1.0 · Streamlit · local + cloud")
+    st.caption("v1.1 · treino-bruno.streamlit.app")
 
 
 # ── Process uploads ────────────────────────────────────────────────────────────
