@@ -1,7 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as _components
 import json
 import os
 from datetime import date, timedelta
+from streamlit_javascript import st_javascript
+
+_LS_KEY = "treino_hub_state"
 
 st.set_page_config(
     page_title="Treino Hub",
@@ -82,13 +86,30 @@ def save_state(state: dict):
     try:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        st.warning(f"Não foi possível salvar o estado: {e}")
+    except Exception:
+        pass
+    # Persist to browser localStorage so state survives server restarts
+    payload = json.dumps(state, ensure_ascii=False)
+    _components.html(
+        f"<script>localStorage.setItem('{_LS_KEY}', {json.dumps(payload)});</script>",
+        height=0,
+    )
 
 
 # ── Session state bootstrap ────────────────────────────────────────────────────
 if "app_state" not in st.session_state:
-    st.session_state.app_state = load_state()
+    _ls_raw = st_javascript(f"localStorage.getItem('{_LS_KEY}')")
+    if _ls_raw == 0:
+        # JS pending on first render — load from file and rerun to get localStorage value
+        st.session_state.app_state = load_state()
+        st.rerun()
+    elif isinstance(_ls_raw, str):
+        try:
+            st.session_state.app_state = {**DEFAULT_STATE, **json.loads(_ls_raw)}
+        except Exception:
+            st.session_state.app_state = load_state()
+    else:
+        st.session_state.app_state = load_state()
 
 STRAVA_CACHE = os.path.join(BASE_DIR, "data", "strava_cache.json")
 HEALTH_CACHE = os.path.join(BASE_DIR, "data", "health_cache.json")
