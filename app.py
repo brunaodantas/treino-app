@@ -122,58 +122,7 @@ if "hevy_df" not in st.session_state:
     st.session_state.hevy_df = None
 
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.title("🏋️ Treino Hub")
-    st.caption("Bruno · brunaodnts")
-    st.markdown("---")
-
-    st.subheader("💾 Backup")
-    state_json = json.dumps(st.session_state.app_state, ensure_ascii=False, indent=2)
-    st.download_button(
-        "⬇️ Baixar backup",
-        data=state_json,
-        file_name="state.json",
-        mime="application/json",
-        use_container_width=True,
-        help="Salva seu histórico de treinos",
-    )
-    state_restore = st.file_uploader(
-        "⬆️ Restaurar backup", type=["json"], key="state_restore",
-        help="Carregue um backup salvo anteriormente"
-    )
-    if state_restore is not None:
-        try:
-            uploaded = json.load(state_restore)
-            merged = {**DEFAULT_STATE, **uploaded}
-            st.session_state.app_state = merged
-            save_state(merged)
-            st.success("✅ Backup restaurado!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Erro ao restaurar: {e}")
-
-    st.markdown("---")
-
-    # Strava connection
-    from parsers.strava_api import get_auth_url, is_connected, get_client_id
-    if get_client_id():
-        st.subheader("🏃 Strava")
-        state = st.session_state.app_state
-        if is_connected(state):
-            athlete = state.get("strava_tokens", {}).get("athlete", {})
-            name = athlete.get("firstname", "Conectado")
-            st.success(f"✅ {name}")
-            if st.button("Desconectar", use_container_width=True):
-                state.pop("strava_tokens", None)
-                save_state(state)
-                st.rerun()
-        else:
-            auth_url = get_auth_url()
-            st.link_button("🔗 Conectar Strava", auth_url, use_container_width=True)
-        st.markdown("---")
-
-    st.caption("v1.2 · treino-bruno.streamlit.app")
+# Sidebar vazia — conteúdo movido para aba ⚙️
 
 
 # ── Strava OAuth callback ──────────────────────────────────────────────────────
@@ -196,11 +145,12 @@ if "code" in _params and not st.session_state.app_state.get("strava_tokens"):
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Dashboard",
     "🏋️ Musculação",
     "🏃 Corrida",
     "📈 Analytics",
+    "⚙️",
 ])
 
 state = st.session_state.app_state
@@ -220,3 +170,49 @@ with tab3:
 with tab4:
     from views.analytics import render_analytics
     render_analytics(st.session_state.strava_df, st.session_state.health_data)
+
+with tab5:
+    st.markdown("### ⚙️ Configurações")
+
+    st.subheader("💾 Backup")
+    state_json = json.dumps(st.session_state.app_state, ensure_ascii=False, indent=2)
+    st.download_button(
+        "⬇️ Baixar backup",
+        data=state_json,
+        file_name="state.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+    state_restore = st.file_uploader(
+        "⬆️ Restaurar backup", type=["json"], key="state_restore",
+    )
+    if state_restore is not None:
+        try:
+            uploaded = json.load(state_restore)
+            merged = {**DEFAULT_STATE, **uploaded}
+            st.session_state.app_state = merged
+            save_state(merged)
+            st.success("✅ Backup restaurado!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao restaurar: {e}")
+
+    st.markdown("---")
+
+    from parsers.strava_api import get_auth_url, is_connected, get_client_id
+    if get_client_id():
+        st.subheader("🏃 Strava")
+        _s = st.session_state.app_state
+        if is_connected(_s):
+            athlete = _s.get("strava_tokens", {}).get("athlete", {})
+            _name = athlete.get("firstname", "Conectado")
+            st.success(f"✅ Conectado como {_name}")
+            if st.button("Desconectar Strava", use_container_width=True):
+                _s.pop("strava_tokens", None)
+                save_state(_s)
+                st.rerun()
+        else:
+            st.link_button("🔗 Conectar Strava", get_auth_url(), use_container_width=True)
+
+    st.markdown("---")
+    st.caption("v1.3 · treino-bruno.streamlit.app")
