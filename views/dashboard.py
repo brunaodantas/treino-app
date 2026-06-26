@@ -31,9 +31,6 @@ def render_dashboard(state: dict, save_fn):
     elif running:
         st.info(f"🏃 Corrida sugerida hoje — **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
 
-    # Próximo treino na fila
-    st.success(f"## 🏋️ Próximo na fila: {WORKOUT_LABELS[next_wk]}")
-
     st.markdown("---")
 
     # Fase de adaptação
