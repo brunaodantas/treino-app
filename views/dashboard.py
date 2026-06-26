@@ -9,7 +9,8 @@ from logic.running import (
     EQUIPMENT_REMINDER,
 )
 from logic.adaptation import (
-    is_adaptation_phase, get_adaptation_week, ADAPTATION_MESSAGE, ADAPTATION_WEEKS,
+    is_adaptation_phase, get_adaptation_week, get_workouts_in_current_week,
+    ADAPTATION_MESSAGE, ADAPTATION_WEEKS, WORKOUTS_PER_WEEK,
 )
 
 
@@ -39,11 +40,13 @@ def render_dashboard(state: dict, save_fn):
     col1, col2 = st.columns([2, 1])
     with col1:
         if in_adaptation:
+            done_in_week = get_workouts_in_current_week(state)
             st.markdown(f"**Fase de Adaptação — Semana {week} de {ADAPTATION_WEEKS}**")
             st.progress(min(week / ADAPTATION_WEEKS, 1.0))
+            st.caption(f"{done_in_week}/{WORKOUTS_PER_WEEK} treinos desta semana — faltam {WORKOUTS_PER_WEEK - done_in_week} para avançar")
             st.warning(ADAPTATION_MESSAGE)
         else:
-            st.success(f"✅ Fase de Adaptação concluída (semana {week})")
+            st.success(f"✅ Fase de Adaptação concluída")
     with col2:
         week_override = st.number_input(
             "Ajustar semana", min_value=1, max_value=20,

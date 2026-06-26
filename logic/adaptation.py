@@ -1,6 +1,5 @@
-from datetime import date
-
 ADAPTATION_WEEKS = 4
+WORKOUTS_PER_WEEK = 5
 LOAD_FACTOR = 0.65
 ADAPTATION_MESSAGE = (
     "🎯 **Fase de Adaptação** — Foco 100% na execução e cadência. "
@@ -17,11 +16,17 @@ def get_adaptation_week(state: dict) -> int:
     override = state.get("adaptation_week_override")
     if override is not None:
         return int(override)
-    try:
-        start = date.fromisoformat(state.get("app_start_date", str(date.today())))
-    except ValueError:
-        start = date.today()
-    return max(1, (date.today() - start).days // 7 + 1)
+    total = len(state.get("workout_log", []))
+    return total // WORKOUTS_PER_WEEK + 1
+
+
+def get_workouts_in_current_week(state: dict) -> int:
+    """Treinos concluídos na semana de adaptação atual (0–5)."""
+    override = state.get("adaptation_week_override")
+    if override is not None:
+        return 0
+    total = len(state.get("workout_log", []))
+    return total % WORKOUTS_PER_WEEK
 
 
 def get_adaptation_load(max_load) -> str:
