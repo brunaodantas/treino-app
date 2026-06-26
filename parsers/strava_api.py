@@ -6,7 +6,7 @@ STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_API_BASE = "https://www.strava.com/api/v3"
 REDIRECT_URI = "https://treino-bruno.streamlit.app"
-SCOPE = "activity:read_all"
+SCOPE = "activity:read_all,activity:write"
 
 
 def get_client_id() -> str:

@@ -11,9 +11,9 @@ Repositório: https://github.com/brunaodantas/treino-app
 
 ## Estrutura
 - `app.py` — entry point, state bootstrap, tabs, OAuth callback
-- `views/musculacao.py` — sessão de treino com timer, wake lock, auto-save
+- `views/musculacao.py` — sessão de treino com timer global, timer de descanso, wake lock, auto-save
 - `views/corrida.py` — histórico de corridas + progressão
-- `views/dashboard.py` — status do dia + fila A→B→C→D
+- `views/dashboard.py` — status do dia (informativo, sem bloqueio por dia)
 - `views/analytics.py` — gráficos de volume e steps
 - `logic/` — schedule, running, adaptation
 - `parsers/strava_api.py` — OAuth + create_activity
@@ -27,11 +27,18 @@ Repositório: https://github.com/brunaodantas/treino-app
 
 ## Features implementadas
 
-### Timer de descanso entre séries (views/musculacao.py)
-- Componente HTML puro (`_TIMER_HTML`) embutido na sessão de treino
-- Opções: 30s · 45s · 1min · 1:30 · 1:45 · 2min
-- Beep via Web Audio API ao zerar
-- Notificação push via Notifications API (pede permissão ao abrir)
+### Timer global de sessão (views/musculacao.py)
+- Componente HTML `_make_global_timer(started_at)` exibido no header da sessão
+- Mostra tempo decorrido desde o início do treino em formato MM:SS
+- Atualiza a cada segundo via `setInterval` no JavaScript do iframe
+
+### Timer de descanso com auto-disparo (views/musculacao.py)
+- `_make_rest_timer(remaining, is_running)` gera HTML com estado inicial injetado
+- Ao marcar uma série como feita (○ → ✅), salva `_rest_ts = time.time()` no session_state
+- No próximo render, Python calcula `remaining = 60 - elapsed` e passa ao timer HTML
+- Timer inicia automaticamente com 1 min; também permite escolha manual de 30s/45s/1min/1:30/1:45/2min
+- Beep via Web Audio API + notificação push ao zerar
+- Resets e rerenders preservam o tempo restante correto
 
 ### Auto-save contra crash (views/musculacao.py)
 - `_save_active_workout()` persiste `active_workout` em `app_state["_active_workout"]`
@@ -40,14 +47,22 @@ Repositório: https://github.com/brunaodantas/treino-app
 
 ### Tela sempre ligada — Wake Lock (views/musculacao.py)
 - `_WAKELOCK_ON` / `_WAKELOCK_OFF`: snippets HTML que acessam `window.parent.navigator.wakeLock`
-- Ativado ao entrar na sessão de treino, desativado ao sair ou finalizar
-- Best-effort: falha silenciosamente em browsers sem suporte (iOS < 16.4 fora de PWA)
+- Ativado ao entrar na sessão, desativado ao sair ou finalizar
+- Best-effort: falha silenciosamente em browsers sem suporte
+
+### Dashboard sem travamento por dia (views/dashboard.py)
+- Removido o early return que bloqueava acesso em dias de descanso
+- Dias de descanso e corrida aparecem como **informativos** (st.info), não como bloqueios
+- Usuário pode selecionar qualquer treino (A–E) a qualquer dia da semana
+- "Próximo na fila" é sugestão, não obrigação
+
+### Strava — correção do escopo OAuth (parsers/strava_api.py)
+- **Bug identificado**: `SCOPE = "activity:read_all"` não incluía permissão de escrita
+- **Correção**: `SCOPE = "activity:read_all,activity:write"` 
+- **Ação necessária**: Usuário precisa desconectar e reconectar o Strava na aba ⚙️ para que o novo escopo seja autorizado
+- Após reconexão, `POST /api/v3/activities` funciona e salva treinos no Strava ao finalizar
 
 ### Salvamento no Strava ao finalizar treino
 - Posta atividade `WeightTraining` via `POST /api/v3/activities`
 - Inclui nome do treino, grupos musculares e volume total na descrição
-
-## Regras de alcance/segurança
-- Sem sidebar: conteúdo de configuração na aba ⚙️
-- CSS esconde header/footer do Streamlit (hambúrguer também some — por isso sidebar removida)
-- Secrets Strava ficam no Streamlit Cloud Settings (não no código)
+- Exibe erro específico da API no toast se falhar (em vez de mensagem genérica)

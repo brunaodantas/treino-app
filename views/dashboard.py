@@ -15,38 +15,28 @@ from logic.adaptation import (
 
 def render_dashboard(state: dict, save_fn):
     today = date.today()
-    weekday = today.weekday()
     day_name = get_day_label(today)
 
     st.markdown(f"### {today.strftime('%d/%m/%Y')} — {day_name}")
     st.markdown("---")
 
-    # --- Status do dia ---
-    if is_rest_day(today):
-        st.error(f"## 🚫 DESCANSO TOTAL — {day_name}")
-        st.markdown("> Zero treino, zero corrida hoje. Recuperação é parte do treino.")
-        _render_next_preview(state)
-        return
-
+    # Informativo do dia (não bloqueia acesso a treinos)
     running = is_running_day(today)
+    rest = is_rest_day(today)
     distance = get_current_distance(state)
     next_wk = get_next_workout(state)
 
-    # Build status card
-    parts = []
-    if running:
-        parts.append(f"🏃 Corrida — **{distance:.1f} km**")
-    parts.append(f"🏋️ {WORKOUT_LABELS[next_wk]}")
+    if rest:
+        st.info(f"💤 Dia de descanso sugerido — mas você decide se treina ou não.")
+    elif running:
+        st.info(f"🏃 Corrida sugerida hoje — **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
 
-    status_text = " + ".join(parts)
-    st.success(f"## {status_text}")
-
-    if running:
-        st.info(EQUIPMENT_REMINDER)
+    # Próximo treino na fila
+    st.success(f"## 🏋️ Próximo na fila: {WORKOUT_LABELS[next_wk]}")
 
     st.markdown("---")
 
-    # --- Fase de adaptação ---
+    # Fase de adaptação
     week = get_adaptation_week(state)
     in_adaptation = is_adaptation_phase(state)
     col1, col2 = st.columns([2, 1])
@@ -70,7 +60,7 @@ def render_dashboard(state: dict, save_fn):
 
     st.markdown("---")
 
-    # --- Botões de ação ---
+    # Botões de ação
     col_a, col_b = st.columns(2)
 
     with col_a:
@@ -102,12 +92,6 @@ def render_dashboard(state: dict, save_fn):
 
     st.markdown("---")
     _render_workout_log(state)
-
-
-def _render_next_preview(state: dict):
-    st.markdown("---")
-    next_wk = get_next_workout(state)
-    st.markdown(f"**Próximo treino:** {WORKOUT_LABELS[next_wk]}")
 
 
 def _render_workout_log(state: dict):

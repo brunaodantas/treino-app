@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 import streamlit.components.v1 as _components
 from datetime import datetime
@@ -17,25 +18,42 @@ WORKOUT_DESC = {
     "E": "Ombros · Trapézio · Braços",
 }
 
-_TIMER_HTML = """
+# ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
+
+_GLOBAL_TIMER_TPL = """
 <style>
-  *{{box-sizing:border-box;margin:0;padding:0}}
-  body{{background:transparent;font-family:-apple-system,sans-serif;padding:2px 0}}
-  .lbl{{color:#aaa;font-size:12px;font-weight:500;margin-bottom:6px;letter-spacing:.5px}}
-  .presets{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}}
-  .pb{{background:#1E3A5F;border:1.5px solid #4A90D9;color:#DDD;padding:7px 10px;
-       border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s}}
-  .pb.sel{{background:#4A90D9;color:#fff;border-color:#4A90D9}}
-  .disp{{font-size:2.6rem;font-weight:700;text-align:center;letter-spacing:3px;
-         padding:8px 0;color:#FAFAFA}}
-  .disp.run{{color:#4CAF50}}
-  .disp.done{{color:#FF6B35}}
-  .ctrls{{display:flex;gap:8px;margin-top:6px}}
-  .cb{{flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;
-       font-size:14px;font-weight:600}}
-  .go{{background:#4CAF50;color:#fff}}
-  .go:disabled{{background:#444;color:#888;cursor:default}}
-  .rst{{background:#333;color:#bbb}}
+  body{background:transparent;margin:0;padding:0;font-family:-apple-system,sans-serif;}
+  .gt{text-align:center;color:#888;font-size:13px;padding:4px 0;}
+  .gt b{color:#FAFAFA;font-size:1.15rem;font-variant-numeric:tabular-nums;letter-spacing:1px;}
+</style>
+<div class="gt">⏱ Treino em andamento &nbsp;—&nbsp; <b id="t">00:00</b></div>
+<script>
+const S = new Date("STARTED_AT").getTime();
+function tick(){
+  const e=Math.max(0,Math.floor((Date.now()-S)/1000)),m=Math.floor(e/60),s=e%60;
+  document.getElementById('t').textContent=m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+}
+tick(); setInterval(tick,1000);
+</script>
+"""
+
+_REST_TIMER_TPL = """
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:transparent;font-family:-apple-system,sans-serif;padding:2px 0}
+  .lbl{color:#aaa;font-size:12px;font-weight:500;margin-bottom:6px;letter-spacing:.5px}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .pb{background:#1E3A5F;border:1.5px solid #4A90D9;color:#DDD;padding:7px 10px;
+      border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s}
+  .pb.sel{background:#4A90D9;color:#fff;border-color:#4A90D9}
+  .disp{font-size:2.6rem;font-weight:700;text-align:center;letter-spacing:3px;padding:8px 0;color:#FAFAFA}
+  .disp.run{color:#4CAF50}
+  .disp.done{color:#FF6B35}
+  .ctrls{display:flex;gap:8px;margin-top:6px}
+  .cb{flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:600}
+  .go{background:#4CAF50;color:#fff}
+  .go:disabled{background:#444;color:#888;cursor:default}
+  .rst{background:#333;color:#bbb}
 </style>
 <div class="lbl">⏱ DESCANSO ENTRE SÉRIES</div>
 <div class="presets" id="pre"></div>
@@ -45,101 +63,88 @@ _TIMER_HTML = """
   <button class="cb rst" onclick="rst()">↺</button>
 </div>
 <script>
-const OPTS=[{{l:'30s',s:30}},{{l:'45s',s:45}},{{l:'1 min',s:60}},
-            {{l:'1:30',s:90}},{{l:'1:45',s:105}},{{l:'2 min',s:120}}];
+const OPTS=[{l:'30s',s:30},{l:'45s',s:45},{l:'1 min',s:60},{l:'1:30',s:90},{l:'1:45',s:105},{l:'2 min',s:120}];
 let tot=0,rem=0,tid=null,run=false,selB=null;
 
 if(Notification&&Notification.permission==='default')Notification.requestPermission();
 
 const pEl=document.getElementById('pre');
-OPTS.forEach(o=>{{
+OPTS.forEach(o=>{
   const b=document.createElement('button');
   b.className='pb';b.textContent=o.l;b.onclick=()=>pick(o.s,b);pEl.appendChild(b);
-}});
+});
 
-function pick(s,btn){{
+function pick(s,btn){
   clearInterval(tid);run=false;tot=rem=s;
-  if(selB)selB.classList.remove('sel');selB=btn;btn.classList.add('sel');
+  if(selB)selB.classList.remove('sel');
+  selB=btn;if(btn)btn.classList.add('sel');
   render();document.getElementById('goBtn').disabled=false;
   document.getElementById('goBtn').textContent='▶ Iniciar';
-}}
+}
 
-function fmt(s){{return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');}}
+function fmt(s){return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');}
 
-function render(){{
+function render(){
   const d=document.getElementById('disp');
-  if(rem>0){{d.textContent=fmt(rem);d.className='disp'+(run?' run':'');}}
-  else{{d.textContent='✓ Vai!';d.className='disp done';}}
-}}
+  if(rem>0){d.textContent=fmt(rem);d.className='disp'+(run?' run':'');}
+  else{d.textContent='✓ Vai!';d.className='disp done';}
+}
 
-function tog(){{
+function tog(){
   if(!tot)return;
-  if(run){{
-    clearInterval(tid);run=false;
-    document.getElementById('goBtn').textContent='▶ Continuar';
-  }}else{{
+  if(run){clearInterval(tid);run=false;document.getElementById('goBtn').textContent='▶ Continuar';}
+  else{
     if(rem<=0)rem=tot;
     run=true;document.getElementById('goBtn').textContent='⏸ Pausar';
-    tid=setInterval(()=>{{
-      rem--;render();
-      if(rem<=0){{
-        clearInterval(tid);run=false;
-        document.getElementById('goBtn').textContent='▶ Iniciar';
-        beep();notif();
-      }}
-    }},1000);
-  }}
-  render();
-}}
-
-function rst(){{
-  clearInterval(tid);run=false;rem=tot;render();
-  document.getElementById('goBtn').textContent='▶ Iniciar';
-  document.getElementById('goBtn').disabled=!tot;
-}}
-
-function beep(){{
-  try{{
-    const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();
-    o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=0.3;
-    o.start();g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.6);
-    o.stop(a.currentTime+0.6);
-  }}catch(e){{}}
-}}
-
-function notif(){{
-  if(Notification&&Notification.permission==='granted'){{
-    try{{new Notification('Treino Hub 🏋️',{{body:'Descanso terminado! Próxima série.'}});}}catch(e){{}}
-  }}
-}}
-</script>
-"""
-
-_WAKELOCK_ON = """
-<script>
-(function(){
-  const p=(() => { try { return window.parent; } catch(e) { return window; } })();
-  const nav=(p||window).navigator;
-  if(nav&&'wakeLock'in nav){
-    nav.wakeLock.request('screen').then(lock=>{
-      (p||window)._twl=lock;
-      lock.addEventListener('release',()=>{ (p||window)._twl=null; });
-    }).catch(()=>{});
+    tid=setInterval(()=>{rem--;render();if(rem<=0){clearInterval(tid);run=false;document.getElementById('goBtn').textContent='▶ Iniciar';beep();notif();}},1000);
   }
-})();
+  render();
+}
+
+function rst(){clearInterval(tid);run=false;rem=tot;render();document.getElementById('goBtn').textContent='▶ Iniciar';document.getElementById('goBtn').disabled=!tot;}
+
+function beep(){try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=0.3;o.start();g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.6);o.stop(a.currentTime+0.6);}catch(e){}}
+function notif(){if(Notification&&Notification.permission==='granted'){try{new Notification('Treino Hub 🏋️',{body:'Descanso terminado! Próxima série.'});}catch(e){}}}
+
+// Auto-start injected by Python
+AUTOSTART_BLOCK
 </script>
 """
 
-_WAKELOCK_OFF = """
-<script>
-(function(){
-  const p=(() => { try { return window.parent; } catch(e) { return window; } })();
-  const w=p||window;
-  if(w._twl){ w._twl.release(); w._twl=null; }
-})();
-</script>
-"""
+_WAKELOCK_ON = """<script>
+(function(){const p=(()=>{try{return window.parent;}catch(e){return window;}})();
+const nav=(p||window).navigator;if(nav&&'wakeLock'in nav){
+nav.wakeLock.request('screen').then(l=>{(p||window)._twl=l;l.addEventListener('release',()=>{(p||window)._twl=null;});}).catch(()=>{});}})();
+</script>"""
 
+_WAKELOCK_OFF = """<script>
+(function(){const p=(()=>{try{return window.parent;}catch(e){return window;}})();
+const w=p||window;if(w._twl){w._twl.release();w._twl=null;}})();
+</script>"""
+
+
+def _make_global_timer(started_at: str) -> str:
+    return _GLOBAL_TIMER_TPL.replace("STARTED_AT", started_at)
+
+
+def _make_rest_timer(remaining: int = 0, is_running: bool = False) -> str:
+    if is_running and remaining > 0:
+        autostart = (
+            f"rem={remaining};tot={remaining};run=true;"
+            "document.getElementById('goBtn').disabled=false;"
+            "document.getElementById('goBtn').textContent='⏸ Pausar';"
+            "render();"
+            "tid=setInterval(()=>{rem--;render();if(rem<=0){"
+            "clearInterval(tid);run=false;"
+            "document.getElementById('goBtn').textContent='▶ Iniciar';"
+            "beep();notif();}},1000);"
+        )
+    else:
+        autostart = ""
+    return _REST_TIMER_TPL.replace("AUTOSTART_BLOCK", autostart)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _get_last_sets(exercise_name: str, state: dict) -> list:
     for session in state.get("workout_history", []):
@@ -150,7 +155,6 @@ def _get_last_sets(exercise_name: str, state: dict) -> list:
 
 
 def _save_active_workout(state: dict, save_fn):
-    """Persiste o treino em andamento no app_state para sobreviver a recargas."""
     if st.session_state.get("active_workout"):
         state["_active_workout"] = st.session_state.active_workout
     else:
@@ -179,7 +183,7 @@ def _init_session(workout: str, state: dict, save_fn):
         "started_at": datetime.now().isoformat(),
         "sets": sets,
     }
-    # Salva backup imediato para proteger contra crash
+    st.session_state._rest_ts = 0.0
     _save_active_workout(state, save_fn)
 
 
@@ -225,14 +229,14 @@ def _finish_workout(state: dict, save_fn):
         state["current_index"] = (state["current_index"] + 1) % 4
 
     st.session_state.active_workout = None
-    state.pop("_active_workout", None)  # limpa backup de crash
+    st.session_state._rest_ts = 0.0
+    state.pop("_active_workout", None)
     st.session_state._wakelock_active = False
     save_fn(state)
 
     st.success(f"✅ Treino {workout} finalizado! Volume: {volume:,.0f} kg")
     _components.html(_WAKELOCK_OFF, height=0)
 
-    # Salvar no Strava se conectado
     if is_connected(state):
         token = get_valid_token(state, save_fn)
         if token:
@@ -248,13 +252,14 @@ def _finish_workout(state: dict, save_fn):
             if result.get("id"):
                 st.toast("🟠 Salvo no Strava!", icon="✅")
             else:
-                st.toast("Strava: não foi possível salvar", icon="⚠️")
+                st.toast(f"Strava: erro {result.get('message','desconhecido')}", icon="⚠️")
 
 
 def render_musculacao(state: dict, hevy_df, save_fn):
     if "active_workout" not in st.session_state:
-        # Tenta restaurar treino interrompido do backup de crash
         st.session_state.active_workout = state.get("_active_workout", None)
+    if "_rest_ts" not in st.session_state:
+        st.session_state._rest_ts = 0.0
 
     if st.session_state.active_workout is None:
         _render_picker(state, save_fn)
@@ -265,7 +270,6 @@ def render_musculacao(state: dict, hevy_df, save_fn):
 # ── Tela de escolha de treino ──────────────────────────────────────────────────
 
 def _render_picker(state: dict, save_fn):
-    # Libera wake lock se houver algum residual
     if st.session_state.get("_wakelock_active"):
         _components.html(_WAKELOCK_OFF, height=0)
         st.session_state._wakelock_active = False
@@ -295,9 +299,7 @@ def _render_picker(state: dict, save_fn):
         st.markdown("#### Últimos treinos")
         for s in history[:6]:
             vol = s.get("volume_total", 0)
-            st.markdown(
-                f"**{s['workout']}** — {s['date']} — {vol:,.0f} kg volume"
-            )
+            st.markdown(f"**{s['workout']}** — {s['date']} — {vol:,.0f} kg volume")
 
 
 # ── Sessão ativa ───────────────────────────────────────────────────────────────
@@ -306,8 +308,9 @@ def _render_session(state: dict, save_fn):
     session = st.session_state.active_workout
     workout = session["workout"]
     exercises = EXERCISES[workout]
+    started_at = session.get("started_at", datetime.now().isoformat())
 
-    # Wake lock: mantém tela acesa durante o treino
+    # Wake lock
     if not st.session_state.get("_wakelock_active"):
         _components.html(_WAKELOCK_ON, height=0)
         st.session_state._wakelock_active = True
@@ -319,13 +322,17 @@ def _render_session(state: dict, save_fn):
     with col_cancel:
         if st.button("✕ Sair", help="Cancela sem salvar"):
             st.session_state.active_workout = None
+            st.session_state._rest_ts = 0.0
             state.pop("_active_workout", None)
             st.session_state._wakelock_active = False
             _components.html(_WAKELOCK_OFF, height=0)
             save_fn(state)
             st.rerun()
 
-    # Progresso global
+    # Timer global de sessão
+    _components.html(_make_global_timer(started_at), height=32)
+
+    # Progresso
     all_sets = [s for ex in exercises for s in session["sets"].get(ex["nome"], [])]
     done_sets = [s for s in all_sets if s["done"]]
     progress = len(done_sets) / len(all_sets) if all_sets else 0
@@ -333,8 +340,20 @@ def _render_session(state: dict, save_fn):
 
     st.markdown("---")
 
-    # Timer de descanso
-    _components.html(_TIMER_HTML, height=210, scrolling=False)
+    # Timer de descanso — calcula estado atual
+    ts = st.session_state._rest_ts
+    rest_dur = 60
+    if ts and ts > 0:
+        elapsed_r = time.time() - ts
+        remaining = max(0, int(rest_dur - elapsed_r))
+        is_running = remaining > 0
+        if not is_running:
+            st.session_state._rest_ts = 0.0  # reset após expirar
+    else:
+        remaining = 0
+        is_running = False
+
+    _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
 
     st.markdown("---")
 
@@ -390,12 +409,13 @@ def _render_session(state: dict, save_fn):
                     if s["done"]:
                         if st.button("✅", key=f"chk_{name}_{i}"):
                             s["done"] = False
-                            _save_active_workout(state, save_fn)  # auto-save no toggle
+                            _save_active_workout(state, save_fn)
                             st.rerun()
                     else:
                         if st.button("○", key=f"chk_{name}_{i}"):
                             s["done"] = True
-                            _save_active_workout(state, save_fn)  # auto-save no toggle
+                            st.session_state._rest_ts = time.time()  # inicia descanso de 1 min
+                            _save_active_workout(state, save_fn)
                             st.rerun()
 
     st.markdown("---")
