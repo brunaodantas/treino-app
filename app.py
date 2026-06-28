@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from streamlit_javascript import st_javascript
 
 _LS_KEY = "treino_hub_state"
+EXPORT_FILE = None  # definido após BASE_DIR
 
 st.set_page_config(
     page_title="Treino Hub",
@@ -51,6 +52,7 @@ footer { display: none; }
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(BASE_DIR, "state.json")
+EXPORT_FILE = os.path.join(BASE_DIR, "dados-treino.json")
 
 # ── Default state ──────────────────────────────────────────────────────────────
 def _last_monday() -> str:
@@ -82,12 +84,87 @@ def load_state() -> dict:
     return DEFAULT_STATE.copy()
 
 
+def export_dados_treino(state: dict):
+    """Exporta snapshot dos dados de treino para dados-treino.json."""
+    from logic.schedule import get_next_workout, WORKOUT_LABELS
+
+    cutoff = str(date.today() - timedelta(days=30))
+
+    # Fila de treinos
+    next_wk = get_next_workout(state)
+    fila = {
+        "sequencia": ["A", "B", "C", "D"],
+        "indice_atual": state.get("current_index", 0),
+        "proximo": next_wk,
+        "descricao_proximo": WORKOUT_LABELS.get(next_wk, ""),
+        "treino_E_ativo": state.get("use_e_next", False),
+    }
+
+    # Histórico últimos 30 dias — musculação
+    historico = []
+    volume_map = {}
+    for entry in state.get("workout_history", []):
+        if entry.get("date", "") >= cutoff:
+            key = (entry.get("date"), entry.get("workout"))
+            volume_map[key] = entry.get("volume_total", 0)
+
+    for entry in state.get("workout_log", []):
+        d = entry.get("date", "")
+        if d >= cutoff:
+            wk = entry.get("workout", "")
+            historico.append({
+                "data": d,
+                "treino": wk,
+                "tipo": "musculacao",
+                "concluido_em": entry.get("completed_at", ""),
+                "volume_kg": volume_map.get((d, wk), None),
+            })
+
+    # Corridas dos últimos 30 dias (se strava_df estiver carregado)
+    try:
+        sdf = st.session_state.get("strava_df")
+        if sdf is not None and not sdf.empty and "data" in sdf.columns:
+            import pandas as pd
+            cutoff_dt = pd.Timestamp(cutoff)
+            runs = sdf[
+                (sdf["data"] >= cutoff_dt) &
+                (sdf.get("tipo", pd.Series(dtype=str)).str.lower().str.contains("corrida|run", na=False))
+            ] if "tipo" in sdf.columns else sdf[sdf["data"] >= cutoff_dt]
+            for _, row in runs.iterrows():
+                historico.append({
+                    "data": str(row["data"])[:10],
+                    "treino": row.get("nome", "Corrida"),
+                    "tipo": "corrida",
+                    "distancia_km": row.get("distancia_km"),
+                    "pace_min_km": row.get("pace_min_km"),
+                    "fc_media": row.get("fc_media"),
+                })
+    except Exception:
+        pass
+
+    historico.sort(key=lambda x: x["data"], reverse=True)
+
+    export = {
+        "gerado_em": str(date.today()),
+        "fila_treinos": fila,
+        "historico_30_dias": historico,
+        "metricas": state.get("metricas", {}),
+    }
+
+    try:
+        with open(EXPORT_FILE, "w", encoding="utf-8") as f:
+            json.dump(export, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
 def save_state(state: dict):
     try:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
+    export_dados_treino(state)
     # Persist to browser localStorage so state survives server restarts
     payload = json.dumps(state, ensure_ascii=False)
     _components.html(
@@ -142,6 +219,8 @@ if "health_data" not in st.session_state:
 if "hevy_df" not in st.session_state:
     st.session_state.hevy_df = None
 
+# Exporta snapshot a cada carregamento/atualização
+export_dados_treino(st.session_state.app_state)
 
 # Sidebar vazia — conteúdo movido para aba ⚙️
 
