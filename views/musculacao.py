@@ -240,7 +240,24 @@ def _finish_workout(state: dict, save_fn):
     if is_connected(state):
         token = get_valid_token(state, save_fn)
         if token:
-            desc = f"{WORKOUT_DESC[workout]}\nVolume total: {volume:,.0f} kg"
+            elapsed_min = elapsed // 60
+            lines = [
+                f"Treino {workout} — {WORKOUT_DESC[workout]}",
+                f"Duração: {elapsed_min}min | Volume: {volume:,.0f} kg",
+                "",
+            ]
+            for ex_name, ex_sets in session["sets"].items():
+                done_sets = [s for s in ex_sets if s["done"]]
+                if not done_sets:
+                    continue
+                lines.append(ex_name)
+                for i, s in enumerate(done_sets, 1):
+                    w = s["weight"]
+                    r = s["reps"]
+                    w_str = f"{w:g}" if w else "—"
+                    lines.append(f"  Série {i}: {w_str} kg × {r}")
+                lines.append("")
+            desc = "\n".join(lines).rstrip()
             result = create_activity(
                 token=token,
                 name=f"Treino {workout} — Treino Hub",
