@@ -64,9 +64,15 @@ _REST_TIMER_TPL = """
 </div>
 <script>
 const OPTS=[{l:'30s',s:30},{l:'45s',s:45},{l:'1 min',s:60},{l:'1:30',s:90},{l:'1:45',s:105},{l:'2 min',s:120}];
-let tot=0,rem=0,tid=null,run=false,selB=null;
+let tot=0,rem=0,tid=null,run=false,selB=null,_ac=null;
 
 if(Notification&&Notification.permission==='default')Notification.requestPermission();
+
+// Desbloqueia AudioContext no primeiro toque (exigido pelo iOS)
+document.addEventListener('touchstart',function unlock(){
+  if(!_ac){try{_ac=new AudioContext();}catch(e){}}
+  if(_ac&&_ac.state==='suspended')_ac.resume();
+},{once:true});
 
 const pEl=document.getElementById('pre');
 OPTS.forEach(o=>{
@@ -96,14 +102,31 @@ function tog(){
   else{
     if(rem<=0)rem=tot;
     run=true;document.getElementById('goBtn').textContent='⏸ Pausar';
-    tid=setInterval(()=>{rem--;render();if(rem<=0){clearInterval(tid);run=false;document.getElementById('goBtn').textContent='▶ Iniciar';beep();notif();}},1000);
+    tid=setInterval(()=>{rem--;render();if(rem<=0){clearInterval(tid);run=false;document.getElementById('goBtn').textContent='▶ Iniciar';beep();flashDone();vibrate();notif();}},1000);
   }
   render();
 }
 
 function rst(){clearInterval(tid);run=false;rem=tot;render();document.getElementById('goBtn').textContent='▶ Iniciar';document.getElementById('goBtn').disabled=!tot;}
 
-function beep(){try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=0.3;o.start();g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.6);o.stop(a.currentTime+0.6);}catch(e){}}
+function beep(){
+  try{
+    if(!_ac)_ac=new AudioContext();
+    function play(){
+      const o=_ac.createOscillator(),g=_ac.createGain();
+      o.connect(g);g.connect(_ac.destination);
+      o.frequency.value=880;g.gain.value=0.4;
+      o.start();g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.8);
+      o.stop(_ac.currentTime+0.8);
+    }
+    if(_ac.state==='suspended')_ac.resume().then(play);else play();
+  }catch(e){}
+}
+function flashDone(){
+  const d=document.getElementById('disp');let n=0;
+  const iv=setInterval(()=>{d.style.color=n%2===0?'#FF6B35':'#FAFAFA';n++;if(n>=8){clearInterval(iv);d.style.color='';}},250);
+}
+function vibrate(){try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}}
 function notif(){if(Notification&&Notification.permission==='granted'){try{new Notification('Treino Hub 🏋️',{body:'Descanso terminado! Próxima série.'});}catch(e){}}}
 
 // Auto-start injected by Python
@@ -137,7 +160,7 @@ def _make_rest_timer(remaining: int = 0, is_running: bool = False) -> str:
             "tid=setInterval(()=>{rem--;render();if(rem<=0){"
             "clearInterval(tid);run=false;"
             "document.getElementById('goBtn').textContent='▶ Iniciar';"
-            "beep();notif();}},1000);"
+            "beep();flashDone();vibrate();notif();}},1000);"
         )
     else:
         autostart = ""
