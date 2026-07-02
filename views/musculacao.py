@@ -188,18 +188,20 @@ def _save_active_workout(state: dict, save_fn):
 def _init_session(workout: str, state: dict, save_fn):
     sets = {}
     for ex in EXERCISES[workout]:
-        last = _get_last_sets(ex["nome"], state)
+        name = ex["nome"]
+        last = _get_last_sets(name, state)
         ex_sets = []
         for i in range(ex["series"]):
             if last and i < len(last):
-                ex_sets.append({
-                    "weight": float(last[i].get("weight", 0)),
-                    "reps": int(last[i].get("reps", 0)),
-                    "done": False,
-                })
+                w = float(last[i].get("weight", 0))
+                r = int(last[i].get("reps", 0))
             else:
-                ex_sets.append({"weight": 0.0, "reps": 0, "done": False})
-        sets[ex["nome"]] = ex_sets
+                w, r = 0.0, 0
+            ex_sets.append({"weight": w, "reps": r, "done": False})
+            # Força os widgets a mostrarem os valores do histórico
+            st.session_state[f"w_{name}_{i}"] = w
+            st.session_state[f"r_{name}_{i}"] = r
+        sets[name] = ex_sets
 
     st.session_state.active_workout = {
         "workout": workout,
