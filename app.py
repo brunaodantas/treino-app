@@ -192,13 +192,57 @@ STRAVA_CACHE = os.path.join(BASE_DIR, "data", "strava_cache.json")
 HEALTH_CACHE = os.path.join(BASE_DIR, "data", "health_cache.json")
 
 if "strava_df" not in st.session_state:
+    import pandas as pd, json as _json
+    # Carrega cache estático como base
+    _base_records = []
     if os.path.exists(STRAVA_CACHE):
-        import pandas as pd, json as _json
         with open(STRAVA_CACHE, encoding="utf-8") as _f:
-            _records = _json.load(_f)
-        _df = pd.DataFrame(_records)
+            _base_records = _json.load(_f)
+
+    # Busca atividades recentes da API se Strava conectado
+    _api_records = []
+    _s = st.session_state.app_state
+    if _s.get("strava_tokens"):
+        try:
+            from parsers.strava_api import get_valid_token, fetch_recent_activities
+            _tok = get_valid_token(_s, save_state)
+            if _tok:
+                _raw = fetch_recent_activities(_tok, per_page=50)
+                for a in _raw:
+                    dist_km = a.get("distance", 0) / 1000
+                    mov_s   = a.get("moving_time", 0)
+                    pace    = (mov_s / 60 / dist_km) if dist_km > 0 else None
+                    _api_records.append({
+                        "data":         a.get("start_date_local", "")[:10],
+                        "nome":         a.get("name", ""),
+                        "tipo":         a.get("sport_type") or a.get("type", ""),
+                        "distancia_km": round(dist_km, 2),
+                        "duracao_min":  round(mov_s / 60, 1),
+                        "pace_min_km":  round(pace, 2) if pace else None,
+                        "fc_media":     a.get("average_heartrate"),
+                        "fc_max":       a.get("max_heartrate"),
+                        "strava_id":    a.get("id"),
+                    })
+        except Exception:
+            pass
+
+    # Mescla: API tem prioridade (mais recente); cache cobre histórico antigo
+    if _api_records:
+        _api_ids  = {r["strava_id"] for r in _api_records if r.get("strava_id")}
+        _api_dates = {r["data"] for r in _api_records}
+        _filtered_base = [
+            r for r in _base_records
+            if r.get("strava_id") not in _api_ids and r.get("data", "") not in _api_dates
+        ]
+        _all = _api_records + _filtered_base
+    else:
+        _all = _base_records
+
+    if _all:
+        _df = pd.DataFrame(_all)
         if "data" in _df.columns:
             _df["data"] = pd.to_datetime(_df["data"], errors="coerce")
+        _df = _df.sort_values("data", ascending=False).reset_index(drop=True)
         st.session_state.strava_df = _df
     else:
         st.session_state.strava_df = None
