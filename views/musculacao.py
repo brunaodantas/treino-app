@@ -302,6 +302,8 @@ def render_musculacao(state: dict, hevy_df, save_fn):
         st.session_state.active_workout = state.get("_active_workout", None)
     if "_rest_ts" not in st.session_state:
         st.session_state._rest_ts = 0.0
+    if "_last_ex" not in st.session_state:
+        st.session_state._last_ex = ""
 
     if st.session_state.active_workout is None:
         _render_picker(state, save_fn)
@@ -382,23 +384,6 @@ def _render_session(state: dict, save_fn):
 
     st.markdown("---")
 
-    # Timer de descanso — calcula estado atual
-    ts = st.session_state._rest_ts
-    rest_dur = 60
-    if ts and ts > 0:
-        elapsed_r = time.time() - ts
-        remaining = max(0, int(rest_dur - elapsed_r))
-        is_running = remaining > 0
-        if not is_running:
-            st.session_state._rest_ts = 0.0  # reset após expirar
-    else:
-        remaining = 0
-        is_running = False
-
-    _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
-
-    st.markdown("---")
-
     # Exercícios
     for ex in exercises:
         name = ex["nome"]
@@ -456,9 +441,36 @@ def _render_session(state: dict, save_fn):
                     else:
                         if st.button("○", key=f"chk_{name}_{i}"):
                             s["done"] = True
-                            st.session_state._rest_ts = time.time()  # inicia descanso de 1 min
+                            st.session_state._rest_ts = time.time()
+                            st.session_state._last_ex = name
                             _save_active_workout(state, save_fn)
                             st.rerun()
+
+    st.markdown("---")
+
+    # Timer de descanso — calcula estado atual
+    _REST_90S = {
+        "Puxada Alta na Polia (Máquina)",
+        "Remada Sentada c/ Pegada em V (Cabo)",
+        "Remada na Máquina (Chest Supported)",
+        "Puxada Fechada na Polia",
+        "Remada Unilateral com Halter",
+        "Leg Press 45°",
+    }
+    last_ex = st.session_state.get("_last_ex", "")
+    rest_dur = 90 if last_ex in _REST_90S else 60
+    ts = st.session_state._rest_ts
+    if ts and ts > 0:
+        elapsed_r = time.time() - ts
+        remaining = max(0, int(rest_dur - elapsed_r))
+        is_running = remaining > 0
+        if not is_running:
+            st.session_state._rest_ts = 0.0
+    else:
+        remaining = 0
+        is_running = False
+
+    _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
 
     st.markdown("---")
 
