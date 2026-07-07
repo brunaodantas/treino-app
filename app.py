@@ -347,6 +347,11 @@ with tab5:
     if get_client_id():
         st.subheader("🏃 Strava")
         _s = st.session_state.app_state
+        if st.button("🔴 Forçar desconexão do Strava", use_container_width=True):
+            _s.pop("strava_tokens", None)
+            save_state(_s)
+            st.success("Strava desconectado. Conecte com a conta correta abaixo.")
+            st.rerun()
         if is_connected(_s):
             athlete = _s.get("strava_tokens", {}).get("athlete", {})
             _name = athlete.get("firstname", "Conectado")
