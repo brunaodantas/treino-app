@@ -349,9 +349,16 @@ with tab5:
         _s = st.session_state.app_state
         if st.button("🔴 Forçar desconexão do Strava", use_container_width=True):
             _s.pop("strava_tokens", None)
-            save_state(_s)
-            st.success("Strava desconectado. Conecte com a conta correta abaixo.")
-            st.rerun()
+            _components.html(f"""
+<script>
+try {{
+  const s = JSON.parse(localStorage.getItem('{_LS_KEY}') || '{{}}');
+  delete s.strava_tokens;
+  localStorage.setItem('{_LS_KEY}', JSON.stringify(s));
+  window.parent.location.reload();
+}} catch(e) {{ window.parent.location.reload(); }}
+</script>
+""", height=0)
         if is_connected(_s):
             athlete = _s.get("strava_tokens", {}).get("athlete", {})
             _name = athlete.get("firstname", "Conectado")
