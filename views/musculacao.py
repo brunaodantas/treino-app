@@ -486,4 +486,9 @@ def _render_session(state: dict, save_fn):
     with col_fin:
         if st.button("🏁 Finalizar Treino", type="primary", use_container_width=True):
             _finish_workout(state, save_fn)
-            st.rerun()
+            import json as _json
+            _payload = _json.dumps(state, ensure_ascii=False)
+            _components.html(f"""<script>
+try{{localStorage.setItem('treino_hub_state',{_json.dumps(_payload)});}}catch(e){{}}
+window.parent.location.reload();
+</script>""", height=0)
