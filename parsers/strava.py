@@ -100,7 +100,7 @@ def _to_float(series: pd.Series) -> pd.Series:
 def get_runs(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or "tipo" not in df.columns:
         return pd.DataFrame()
-    mask = df["tipo"].str.contains("Corrida", case=False, na=False)
+    mask = df["tipo"].str.contains("Corrida|^Run$", case=False, na=False)
     runs = df[mask].copy()
     if "distancia_km" in runs.columns:
         runs["distancia_km"] = _to_float(runs["distancia_km"])
