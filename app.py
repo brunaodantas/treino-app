@@ -397,10 +397,16 @@ try {{
             athlete = _s.get("strava_tokens", {}).get("athlete", {})
             _name = athlete.get("firstname", "Conectado")
             st.success(f"✅ Conectado como {_name}")
-            if st.button("Desconectar Strava", use_container_width=True):
-                _s.pop("strava_tokens", None)
-                save_state(_s)
-                st.rerun()
+            col_sync_s, col_disc_s = st.columns(2)
+            with col_sync_s:
+                if st.button("🔄 Sincronizar Strava", use_container_width=True):
+                    st.session_state.pop("strava_df", None)
+                    st.rerun()
+            with col_disc_s:
+                if st.button("Desconectar Strava", use_container_width=True):
+                    _s.pop("strava_tokens", None)
+                    save_state(_s)
+                    st.rerun()
         else:
             st.link_button("🔗 Conectar Strava", get_auth_url(), use_container_width=True)
 
