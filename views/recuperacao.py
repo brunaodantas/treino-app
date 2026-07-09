@@ -2,17 +2,6 @@ import streamlit as st
 from datetime import date, timedelta
 
 
-def _status_color(val, ok, warn):
-    """Retorna 🟢 / 🟡 / 🔴 baseado em thresholds."""
-    if val is None:
-        return "⚪"
-    if val <= ok:
-        return "🟢"
-    if val <= warn:
-        return "🟡"
-    return "🔴"
-
-
 def _hr_status(fc):
     if fc is None:
         return "⚪", "Sem dados"
@@ -53,38 +42,62 @@ def _recovery_score(fc, sleep_h):
     return score / total
 
 
-def render_recuperacao(state: dict, gfit_data: dict | None):
+def _merge_daily(gfit_data, health_data, d):
+    """
+    Retorna (fc, sono, passos, calorias) para a data d.
+    Prioridade: Google Fit > Apple Health.
+    """
+    fc = None
+    sono = None
+    passos = None
+    calorias = None
+    yesterday = str(date.fromisoformat(d) - timedelta(days=1))
+
+    # Google Fit (prioridade)
+    if gfit_data:
+        for e in gfit_data.get("resting_hr", []):
+            if e["data"] == d:
+                fc = e["fc_repouso"]
+                break
+        for e in gfit_data.get("sleep", []):
+            if e["data"] in (d, yesterday):
+                sono = e["sono_horas"]
+                break
+        for e in gfit_data.get("steps", []):
+            if e["data"] == d:
+                passos = e["passos"]
+                break
+        for e in gfit_data.get("calories", []):
+            if e["data"] == d:
+                calorias = e["calorias"]
+                break
+
+    # Apple Health (fallback quando Google Fit não tem dado)
+    if health_data:
+        if fc is None:
+            hr_list = health_data.get("daily_resting_hr", {}).get(d, [])
+            if hr_list:
+                fc = round(sum(hr_list) / len(hr_list))
+
+        if passos is None:
+            p = health_data.get("daily_steps", {}).get(d)
+            if p:
+                passos = int(p)
+
+        if calorias is None:
+            c = health_data.get("daily_calories", {}).get(d)
+            if c:
+                calorias = int(c)
+
+    return fc, sono, passos, calorias
+
+
+def render_recuperacao(state: dict, gfit_data: dict | None, health_data: dict | None = None):
     st.markdown("### 💤 Recuperação")
 
     today = str(date.today())
-    yesterday = str(date.today() - timedelta(days=1))
 
-    # Extrai dados do Google Fit
-    fc_hoje = None
-    sono_ontem = None
-    passos_hoje = None
-    calorias_hoje = None
-
-    if gfit_data:
-        for entry in gfit_data.get("resting_hr", []):
-            if entry["data"] == today:
-                fc_hoje = entry["fc_repouso"]
-                break
-
-        for entry in gfit_data.get("sleep", []):
-            if entry["data"] in (today, yesterday):
-                sono_ontem = entry["sono_horas"]
-                break
-
-        for entry in gfit_data.get("steps", []):
-            if entry["data"] == today:
-                passos_hoje = entry["passos"]
-                break
-
-        for entry in gfit_data.get("calories", []):
-            if entry["data"] == today:
-                calorias_hoje = entry["calorias"]
-                break
+    fc_hoje, sono_ontem, passos_hoje, calorias_hoje = _merge_daily(gfit_data, health_data, today)
 
     # Score de recuperação
     score = _recovery_score(fc_hoje, sono_ontem)
@@ -111,7 +124,6 @@ def render_recuperacao(state: dict, gfit_data: dict | None):
 
     st.markdown("")
 
-    # Cards de métricas
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -142,22 +154,19 @@ def render_recuperacao(state: dict, gfit_data: dict | None):
         icon=None,
     )
 
-    # Histórico 7 dias (Google Fit)
-    if gfit_data:
+    # Histórico 7 dias
+    if gfit_data or health_data:
         st.markdown("#### Últimos 7 dias")
-
-        rhr_map = {e["data"]: e["fc_repouso"] for e in gfit_data.get("resting_hr", [])}
-        sleep_map = {e["data"]: e["sono_horas"] for e in gfit_data.get("sleep", [])}
-        steps_map = {e["data"]: e["passos"] for e in gfit_data.get("steps", [])}
-
         rows = []
         for i in range(7):
             d = str(date.today() - timedelta(days=i))
+            fc, sono, passos, cals = _merge_daily(gfit_data, health_data, d)
             rows.append({
                 "Data": d,
-                "FC Repouso": f"{rhr_map[d]} bpm" if d in rhr_map else "—",
-                "Sono": f"{sleep_map[d]}h" if d in sleep_map else "—",
-                "Passos": f"{steps_map[d]:,}".replace(",", ".") if d in steps_map else "—",
+                "FC Repouso": f"{fc} bpm" if fc else "—",
+                "Sono": f"{sono}h" if sono else "—",
+                "Passos": f"{passos:,}".replace(",", ".") if passos else "—",
+                "Calorias": f"{cals} kcal" if cals else "—",
             })
 
         import pandas as pd

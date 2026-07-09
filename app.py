@@ -340,7 +340,7 @@ with tab4:
 
 with tab5:
     from views.recuperacao import render_recuperacao
-    render_recuperacao(state, st.session_state.gfit_data)
+    render_recuperacao(state, st.session_state.gfit_data, st.session_state.health_data)
 
 with tab6:
     st.markdown("### ⚙️ Configurações")
