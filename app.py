@@ -226,6 +226,12 @@ if "strava_df" not in st.session_state:
             if r.get("strava_id") not in _api_ids and r.get("data", "") not in _api_dates
         ]
         _all = _api_records + _filtered_base
+        # Persiste atividades novas no cache para não perder entre reinícios do servidor
+        try:
+            with open(STRAVA_CACHE, "w", encoding="utf-8") as _f:
+                _json.dump(_all, _f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
     else:
         _all = _base_records
 
