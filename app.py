@@ -76,7 +76,6 @@ def load_state() -> dict:
         try:
             with open(STATE_FILE, encoding="utf-8") as f:
                 saved = json.load(f)
-            # Merge with defaults so new keys always exist
             merged = {**DEFAULT_STATE, **saved}
             return merged
         except Exception:
@@ -90,7 +89,6 @@ def export_dados_treino(state: dict):
 
     cutoff = str(date.today() - timedelta(days=30))
 
-    # Fila de treinos
     next_wk = get_next_workout(state)
     fila = {
         "sequencia": ["A", "B", "C", "D"],
@@ -100,7 +98,6 @@ def export_dados_treino(state: dict):
         "treino_E_ativo": state.get("use_e_next", False),
     }
 
-    # Histórico últimos 30 dias — musculação
     historico = []
     volume_map = {}
     for entry in state.get("workout_history", []):
@@ -120,7 +117,6 @@ def export_dados_treino(state: dict):
                 "volume_kg": volume_map.get((d, wk), None),
             })
 
-    # Corridas dos últimos 30 dias (se strava_df estiver carregado)
     try:
         sdf = st.session_state.get("strava_df")
         if sdf is not None and not sdf.empty and "data" in sdf.columns:
@@ -165,7 +161,6 @@ def save_state(state: dict):
     except Exception:
         pass
     export_dados_treino(state)
-    # Persist to browser localStorage so state survives server restarts
     payload = json.dumps(state, ensure_ascii=False)
     _components.html(
         f"<script>localStorage.setItem('{_LS_KEY}', {json.dumps(payload)});</script>",
@@ -177,7 +172,6 @@ def save_state(state: dict):
 if "app_state" not in st.session_state:
     _ls_raw = st_javascript(f"localStorage.getItem('{_LS_KEY}')")
     if _ls_raw == 0:
-        # JS pending on first render — load from file and rerun to get localStorage value
         st.session_state.app_state = load_state()
         st.rerun()
     elif isinstance(_ls_raw, str):
@@ -193,13 +187,11 @@ HEALTH_CACHE = os.path.join(BASE_DIR, "data", "health_cache.json")
 
 if "strava_df" not in st.session_state:
     import pandas as pd, json as _json
-    # Carrega cache estático como base
     _base_records = []
     if os.path.exists(STRAVA_CACHE):
         with open(STRAVA_CACHE, encoding="utf-8") as _f:
             _base_records = _json.load(_f)
 
-    # Busca atividades recentes da API se Strava conectado
     _api_records = []
     _s = st.session_state.app_state
     if _s.get("strava_tokens"):
@@ -226,7 +218,6 @@ if "strava_df" not in st.session_state:
         except Exception:
             pass
 
-    # Mescla: API tem prioridade (mais recente); cache cobre histórico antigo
     if _api_records:
         _api_ids  = {r["strava_id"] for r in _api_records if r.get("strava_id")}
         _api_dates = {r["data"] for r in _api_records}
@@ -263,15 +254,29 @@ if "health_data" not in st.session_state:
 if "hevy_df" not in st.session_state:
     st.session_state.hevy_df = None
 
-# Exporta snapshot a cada carregamento/atualização
+# ── Google Fit data (carrega se conectado) ─────────────────────────────────────
+if "gfit_data" not in st.session_state:
+    _s = st.session_state.app_state
+    if _s.get("gfit_tokens"):
+        try:
+            from parsers.google_fit import get_valid_token as gfit_token, fetch_all
+            _tok = gfit_token(_s, save_state)
+            if _tok:
+                st.session_state.gfit_data = fetch_all(_tok, days=7)
+            else:
+                st.session_state.gfit_data = None
+        except Exception:
+            st.session_state.gfit_data = None
+    else:
+        st.session_state.gfit_data = None
+
 export_dados_treino(st.session_state.app_state)
 
-# Sidebar vazia — conteúdo movido para aba ⚙️
-
-
-# ── Strava OAuth callback ──────────────────────────────────────────────────────
+# ── OAuth callbacks ────────────────────────────────────────────────────────────
 _params = st.query_params
-if "code" in _params and not st.session_state.app_state.get("strava_tokens"):
+
+# Strava callback
+if "code" in _params and _params.get("state", "") != "googlefit" and not st.session_state.app_state.get("strava_tokens"):
     from parsers.strava_api import exchange_code
     _code = _params["code"]
     _token_data = exchange_code(_code)
@@ -287,13 +292,31 @@ if "code" in _params and not st.session_state.app_state.get("strava_tokens"):
         st.toast("✅ Strava conectado!", icon="🏃")
         st.rerun()
 
+# Google Fit callback
+if "code" in _params and _params.get("state", "") == "googlefit" and not st.session_state.app_state.get("gfit_tokens"):
+    from parsers.google_fit import exchange_code as gfit_exchange
+    from datetime import datetime
+    _code = _params["code"]
+    _token_data = gfit_exchange(_code)
+    if "access_token" in _token_data:
+        st.session_state.app_state["gfit_tokens"] = {
+            "access_token": _token_data["access_token"],
+            "refresh_token": _token_data.get("refresh_token", ""),
+            "expires_at": int(datetime.now().timestamp()) + _token_data.get("expires_in", 3600),
+        }
+        save_state(st.session_state.app_state)
+        st.query_params.clear()
+        st.toast("✅ Google Fit conectado!", icon="❤️")
+        st.rerun()
+
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Dashboard",
+    "🥗 Cardápio",
     "🏋️ Musculação",
     "🏃 Corrida",
-    "📈 Analytics",
+    "💤 Recuperação",
     "⚙️",
 ])
 
@@ -304,18 +327,22 @@ with tab1:
     render_dashboard(state, save_state)
 
 with tab2:
+    from views.cardapio import render_cardapio
+    render_cardapio(state, save_state)
+
+with tab3:
     from views.musculacao import render_musculacao
     render_musculacao(state, st.session_state.hevy_df, save_state)
 
-with tab3:
+with tab4:
     from views.corrida import render_corrida
     render_corrida(state, st.session_state.strava_df, st.session_state.health_data)
 
-with tab4:
-    from views.analytics import render_analytics
-    render_analytics(st.session_state.strava_df, st.session_state.health_data)
-
 with tab5:
+    from views.recuperacao import render_recuperacao
+    render_recuperacao(state, st.session_state.gfit_data)
+
+with tab6:
     st.markdown("### ⚙️ Configurações")
 
     st.subheader("💾 Backup")
@@ -343,6 +370,7 @@ with tab5:
 
     st.markdown("---")
 
+    # Strava
     from parsers.strava_api import get_auth_url, is_connected, get_client_id
     if get_client_id():
         st.subheader("🏃 Strava")
@@ -371,4 +399,36 @@ try {{
             st.link_button("🔗 Conectar Strava", get_auth_url(), use_container_width=True)
 
     st.markdown("---")
-    st.caption("v1.3 · treino-bruno.streamlit.app")
+
+    # Google Fit
+    from parsers.google_fit import get_auth_url as gfit_auth_url, get_client_id as gfit_client_id, is_connected as gfit_connected
+    st.subheader("❤️ Google Fit")
+    _s = st.session_state.app_state
+    if gfit_connected(_s):
+        st.success("✅ Google Fit conectado")
+        col_sync, col_disc = st.columns(2)
+        with col_sync:
+            if st.button("🔄 Sincronizar agora", use_container_width=True):
+                st.session_state.pop("gfit_data", None)
+                st.rerun()
+        with col_disc:
+            if st.button("Desconectar", use_container_width=True):
+                _s.pop("gfit_tokens", None)
+                st.session_state.gfit_data = None
+                _components.html(f"""
+<script>
+try {{
+  const s = JSON.parse(localStorage.getItem('{_LS_KEY}') || '{{}}');
+  delete s.gfit_tokens;
+  localStorage.setItem('{_LS_KEY}', JSON.stringify(s));
+  window.parent.location.reload();
+}} catch(e) {{ window.parent.location.reload(); }}
+</script>
+""", height=0)
+    elif gfit_client_id():
+        st.link_button("🔗 Conectar Google Fit", gfit_auth_url(), use_container_width=True)
+    else:
+        st.info("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nos Secrets do Streamlit para ativar o Google Fit.")
+
+    st.markdown("---")
+    st.caption("v1.4 · treino-bruno.streamlit.app")
