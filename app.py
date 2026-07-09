@@ -400,7 +400,9 @@ try {{
             col_sync_s, col_disc_s = st.columns(2)
             with col_sync_s:
                 if st.button("🔄 Sincronizar Strava", use_container_width=True):
-                    st.session_state.pop("strava_df", None)
+                    with st.spinner("Buscando atividades..."):
+                        st.session_state.pop("strava_df", None)
+                    st.toast("✅ Strava sincronizado!", icon="🏃")
                     st.rerun()
             with col_disc_s:
                 if st.button("Desconectar Strava", use_container_width=True):
