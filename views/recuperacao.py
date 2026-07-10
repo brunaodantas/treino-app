@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import date, timedelta
+from utils import today_br
 
 
 def _hr_status(fc):
@@ -129,7 +130,7 @@ def _merge_daily(gfit_data, health_data, intervals_data, d):
 def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=None):
     st.markdown("### 💤 Recuperação")
 
-    today = str(date.today())
+    today = today_br()
     fc, sono, passos, calorias, hrv, ctl, atl, tsb = _merge_daily(
         gfit_data, health_data, intervals_data, today
     )
@@ -216,8 +217,10 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
     if gfit_data or health_data or intervals_data:
         st.markdown("#### Últimos 7 dias")
         rows = []
+        from datetime import datetime, timezone, timedelta as _td
+        _br = datetime.now(timezone(_td(hours=-3))).date()
         for i in range(7):
-            d = str(date.today() - timedelta(days=i))
+            d = str(_br - timedelta(days=i))
             fc_d, sono_d, passos_d, cals_d, hrv_d, *_ = _merge_daily(
                 gfit_data, health_data, intervals_data, d
             )

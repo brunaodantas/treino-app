@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
 from datetime import date
+from utils import today_br
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "health_log.json"
 HRV_BASELINE = 29.0
@@ -121,7 +122,7 @@ def render_saude():
         return
 
     # Resumo hoje
-    hoje = df[df["data"] == pd.Timestamp(date.today())]
+    hoje = df[df["data"] == pd.Timestamp(today_br())]
     if not hoje.empty:
         r = hoje.iloc[0]
         hrv = r.get("hrv")
@@ -143,9 +144,9 @@ def render_saude():
     # Filtro de período
     periodo = st.radio("Período", ["2 semanas", "1 mês", "Tudo"], horizontal=True, index=0)
     if periodo == "2 semanas":
-        df = df[df["data"] >= pd.Timestamp(date.today()) - pd.Timedelta(days=14)]
+        df = df[df["data"] >= pd.Timestamp(today_br()) - pd.Timedelta(days=14)]
     elif periodo == "1 mês":
-        df = df[df["data"] >= pd.Timestamp(date.today()) - pd.Timedelta(days=30)]
+        df = df[df["data"] >= pd.Timestamp(today_br()) - pd.Timedelta(days=30)]
 
     df_hrv = df[df["hrv"].notna()]
     if not df_hrv.empty:
