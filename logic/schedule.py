@@ -35,7 +35,7 @@ EXERCISES = {
         {"nome": "Rosca Scott Máquina",        "series": 3, "reps": "10-12", "peso_atual": 25.0, "peso_prog": 27.0},
     ],
     "C": [
-        {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 80.0, "peso_prog": 90.0},
+        {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
         {"nome": "Cadeira Extensora",          "series": 3, "reps": "12-15", "peso_atual": 63.0, "peso_prog": 70.0},
         {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual": 41.0, "peso_prog": 46.0},
         {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual": 50.0, "peso_prog": 55.0},
