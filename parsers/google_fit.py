@@ -92,12 +92,20 @@ def _ms_to_ts(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000)
 
 
+def _midnight_local(days_ago: int = 0) -> int:
+    """Retorna meia-noite local de N dias atrás em milissegundos."""
+    from datetime import date
+    d = date.today() - timedelta(days=days_ago)
+    dt = datetime(d.year, d.month, d.day, 0, 0, 0)
+    return int(dt.timestamp() * 1000)
+
+
 def _now_ms() -> int:
     return int(datetime.now().timestamp() * 1000)
 
 
 def _days_ago_ms(days: int) -> int:
-    return int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
+    return _midnight_local(days)
 
 
 def fetch_steps(token: str, days: int = 7) -> list[dict]:
