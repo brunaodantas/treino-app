@@ -142,11 +142,14 @@ def _render_run_history(strava_df, health_data):
                     row["FC Média"] = f"{int(fc)} bpm"
             except Exception:
                 pass
-            if "pace_min_km" in r and r["pace_min_km"]:
-                pace = r["pace_min_km"]
-                mins = int(pace)
-                secs = int((pace - mins) * 60)
-                row["Pace"] = f"{mins}:{secs:02d} /km"
+            try:
+                pace = float(r["pace_min_km"]) if r.get("pace_min_km") else None
+                if pace and 2 < pace < 30:
+                    mins = int(pace)
+                    secs = int((pace - mins) * 60)
+                    row["Pace"] = f"{mins}:{secs:02d} /km"
+            except Exception:
+                pass
             display.append(row)
         st.dataframe(pd.DataFrame(display), use_container_width=True, hide_index=True)
 
