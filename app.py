@@ -281,6 +281,17 @@ if "gfit_data" not in st.session_state:
     else:
         st.session_state.gfit_data = None
 
+# ── Intervals.icu data ─────────────────────────────────────────────────────────
+if "intervals_data" not in st.session_state:
+    try:
+        from parsers.intervals import is_configured, fetch_wellness
+        if is_configured():
+            st.session_state.intervals_data = fetch_wellness(days=7)
+        else:
+            st.session_state.intervals_data = None
+    except Exception:
+        st.session_state.intervals_data = None
+
 export_dados_treino(st.session_state.app_state)
 
 # ── OAuth callbacks ────────────────────────────────────────────────────────────
@@ -351,7 +362,12 @@ with tab4:
 
 with tab5:
     from views.recuperacao import render_recuperacao
-    render_recuperacao(state, st.session_state.gfit_data, st.session_state.health_data)
+    render_recuperacao(
+        state,
+        st.session_state.gfit_data,
+        st.session_state.health_data,
+        st.session_state.get("intervals_data"),
+    )
 
 with tab6:
     st.markdown("### ⚙️ Configurações")

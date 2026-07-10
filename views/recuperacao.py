@@ -9,7 +9,7 @@ def _hr_status(fc):
         return "🟢", "Excelente"
     if fc <= 70:
         return "🟡", "Normal"
-    return "🔴", "Elevada — descanse"
+    return "🔴", "Elevada"
 
 
 def _sleep_status(horas):
@@ -22,9 +22,25 @@ def _sleep_status(horas):
     return "🔴", "Insuficiente"
 
 
-def _recovery_score(fc, sleep_h):
+def _hrv_status(hrv):
+    if hrv is None:
+        return "⚪", "Sem dados"
+    if hrv >= 60:
+        return "🟢", "Ótimo"
+    if hrv >= 40:
+        return "🟡", "Normal"
+    return "🔴", "Baixo"
+
+
+def _recovery_score(fc, sleep_h, hrv=None):
     score = 0
     total = 0
+    if hrv is not None:
+        total += 2  # HRV tem peso maior
+        if hrv >= 60:
+            score += 2
+        elif hrv >= 40:
+            score += 1
     if fc is not None:
         total += 1
         if fc <= 60:
@@ -42,27 +58,47 @@ def _recovery_score(fc, sleep_h):
     return score / total
 
 
-def _merge_daily(gfit_data, health_data, d):
+def _get_intervals_day(intervals_data, d):
+    if not intervals_data:
+        return {}
+    for entry in intervals_data:
+        if entry.get("data") == d:
+            return entry
+    return {}
+
+
+def _merge_daily(gfit_data, health_data, intervals_data, d):
     """
-    Retorna (fc, sono, passos, calorias) para a data d.
-    Prioridade: Google Fit > Apple Health.
+    Retorna (fc, sono, passos, calorias, hrv, ctl, atl, tsb) para a data d.
+    Prioridade: Intervals > Google Fit > Apple Health.
     """
-    fc = None
-    sono = None
-    passos = None
-    calorias = None
+    fc = sono = passos = calorias = hrv = ctl = atl = tsb = None
+
+    # Intervals (prioridade máxima)
+    iv = _get_intervals_day(intervals_data, d)
+    if iv:
+        fc = iv.get("fc_repouso")
+        hrv = iv.get("hrv")
+        ctl = iv.get("ctl")
+        atl = iv.get("atl")
+        tsb = iv.get("tsb")
+        if iv.get("sono_horas"):
+            sono = iv["sono_horas"]
+
     yesterday = str(date.fromisoformat(d) - timedelta(days=1))
 
-    # Google Fit (prioridade)
+    # Google Fit (fallback)
     if gfit_data:
-        for e in gfit_data.get("resting_hr", []):
-            if e["data"] == d:
-                fc = e["fc_repouso"]
-                break
-        for e in gfit_data.get("sleep", []):
-            if e["data"] in (d, yesterday):
-                sono = e["sono_horas"]
-                break
+        if fc is None:
+            for e in gfit_data.get("resting_hr", []):
+                if e["data"] == d:
+                    fc = e["fc_repouso"]
+                    break
+        if sono is None:
+            for e in gfit_data.get("sleep", []):
+                if e["data"] in (d, yesterday):
+                    sono = e["sono_horas"]
+                    break
         for e in gfit_data.get("steps", []):
             if e["data"] == d:
                 passos = e["passos"]
@@ -72,38 +108,37 @@ def _merge_daily(gfit_data, health_data, d):
                 calorias = e["calorias"]
                 break
 
-    # Apple Health (fallback quando Google Fit não tem dado)
+    # Apple Health (último fallback)
     if health_data:
         if fc is None:
             hr_list = health_data.get("daily_resting_hr", {}).get(d, [])
             if hr_list:
                 fc = round(sum(hr_list) / len(hr_list))
-
         if passos is None:
             p = health_data.get("daily_steps", {}).get(d)
             if p:
                 passos = int(p)
-
         if calorias is None:
             c = health_data.get("daily_calories", {}).get(d)
             if c:
                 calorias = int(c)
 
-    return fc, sono, passos, calorias
+    return fc, sono, passos, calorias, hrv, ctl, atl, tsb
 
 
-def render_recuperacao(state: dict, gfit_data: dict | None, health_data: dict | None = None):
+def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=None):
     st.markdown("### 💤 Recuperação")
 
     today = str(date.today())
-
-    fc_hoje, sono_ontem, passos_hoje, calorias_hoje = _merge_daily(gfit_data, health_data, today)
+    fc, sono, passos, calorias, hrv, ctl, atl, tsb = _merge_daily(
+        gfit_data, health_data, intervals_data, today
+    )
 
     # Score de recuperação
-    score = _recovery_score(fc_hoje, sono_ontem)
+    score = _recovery_score(fc, sono, hrv)
 
     if score is None:
-        rec_label = "⚪ Conecte o Google Fit para ver recuperação"
+        rec_label = "⚪ Conecte o Google Fit ou Intervals para ver recuperação"
         rec_color = "#888"
     elif score >= 0.8:
         rec_label = "🟢 Bom para treinar hoje"
@@ -124,25 +159,48 @@ def render_recuperacao(state: dict, gfit_data: dict | None, health_data: dict | 
 
     st.markdown("")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # Métricas principais
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        icon, label = _hr_status(fc_hoje)
-        st.metric("FC Repouso", f"{fc_hoje} bpm" if fc_hoje else "—", label)
+        icon, label = _hrv_status(hrv)
+        st.metric("HRV", f"{hrv:.0f}" if hrv else "—", label)
         st.markdown(icon)
 
     with col2:
-        icon, label = _sleep_status(sono_ontem)
-        st.metric("Sono", f"{sono_ontem}h" if sono_ontem else "—", label)
+        icon, label = _hr_status(fc)
+        st.metric("FC Repouso", f"{fc} bpm" if fc else "—", label)
         st.markdown(icon)
 
     with col3:
-        p_str = f"{passos_hoje:,}".replace(",", ".") if passos_hoje else "—"
-        st.metric("Passos hoje", p_str)
+        icon, label = _sleep_status(sono)
+        st.metric("Sono", f"{sono}h" if sono else "—", label)
+        st.markdown(icon)
 
     with col4:
-        c_str = f"{calorias_hoje} kcal" if calorias_hoje else "—"
-        st.metric("Calorias", c_str)
+        p_str = f"{passos:,}".replace(",", ".") if passos else "—"
+        st.metric("Passos", p_str)
+
+    with col5:
+        st.metric("Calorias", f"{calorias} kcal" if calorias else "—")
+
+    # Carga de treino (Intervals)
+    if ctl is not None or atl is not None:
+        st.markdown("---")
+        st.markdown("#### 📊 Carga de Treino")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Forma (CTL)", f"{ctl:.1f}" if ctl else "—",
+                      help="Fitness acumulado nos últimos 42 dias")
+        with c2:
+            st.metric("Fadiga (ATL)", f"{atl:.1f}" if atl else "—",
+                      help="Fadiga dos últimos 7 dias")
+        with c3:
+            tsb_val = round(tsb, 1) if tsb is not None else None
+            tsb_color = "normal" if tsb_val is None else ("inverse" if tsb_val < -20 else "normal")
+            st.metric("Frescor (TSB)", f"{tsb_val:+.1f}" if tsb_val is not None else "—",
+                      delta_color=tsb_color,
+                      help="TSB > 0: descansado | TSB < -10: fadigado | TSB < -20: sobrecarga")
 
     st.markdown("---")
 
@@ -150,26 +208,29 @@ def render_recuperacao(state: dict, gfit_data: dict | None, health_data: dict | 
     st.markdown("### 🦵 Proteção Articular")
     st.warning(
         "⚠️ **JOELHO:** Sem agachamento livre pesado. "
-        "Use sempre Leg Press 45°, Cadeira Extensora e Adutora — nunca agachamento livre com carga.",
+        "Use sempre Leg Press 45°, Cadeira Extensora e Adutora.",
         icon=None,
     )
 
     # Histórico 7 dias
-    if gfit_data or health_data:
+    if gfit_data or health_data or intervals_data:
         st.markdown("#### Últimos 7 dias")
         rows = []
         for i in range(7):
             d = str(date.today() - timedelta(days=i))
-            fc, sono, passos, cals = _merge_daily(gfit_data, health_data, d)
+            fc_d, sono_d, passos_d, cals_d, hrv_d, *_ = _merge_daily(
+                gfit_data, health_data, intervals_data, d
+            )
             rows.append({
                 "Data": d,
-                "FC Repouso": f"{fc} bpm" if fc else "—",
-                "Sono": f"{sono}h" if sono else "—",
-                "Passos": f"{passos:,}".replace(",", ".") if passos else "—",
-                "Calorias": f"{cals} kcal" if cals else "—",
+                "HRV": f"{hrv_d:.0f}" if hrv_d else "—",
+                "FC Repouso": f"{fc_d} bpm" if fc_d else "—",
+                "Sono": f"{sono_d}h" if sono_d else "—",
+                "Passos": f"{passos_d:,}".replace(",", ".") if passos_d else "—",
+                "Calorias": f"{cals_d} kcal" if cals_d else "—",
             })
 
         import pandas as pd
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
     else:
-        st.info("Conecte o Google Fit na aba ⚙️ para ver dados de recuperação.")
+        st.info("Conecte o Google Fit ou configure o Intervals.icu para ver dados de recuperação.")
