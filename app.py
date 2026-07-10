@@ -333,12 +333,13 @@ if "code" in _params and _params.get("state", "") == "googlefit" and not st.sess
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Dashboard",
     "🥗 Cardápio",
     "🏋️ Musculação",
     "🏃 Corrida",
     "💤 Recuperação",
+    "📈 Saúde",
     "⚙️",
 ])
 
@@ -370,6 +371,10 @@ with tab5:
     )
 
 with tab6:
+    from views.saude import render_saude
+    render_saude()
+
+with tab7:
     st.markdown("### ⚙️ Configurações")
 
     st.subheader("💾 Backup")
