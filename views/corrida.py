@@ -147,7 +147,7 @@ def _render_run_history(strava_df, health_data):
                 if pace and 2 < pace < 30:
                     mins = int(pace)
                     secs = int((pace - mins) * 60)
-                    row["Pace"] = f"{mins}:{secs:02d} /km"
+                    row["Ritmo"] = f"{mins}:{secs:02d} /km"
             except Exception:
                 pass
             display.append(row)

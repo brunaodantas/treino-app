@@ -106,9 +106,13 @@ def get_runs(df: pd.DataFrame) -> pd.DataFrame:
         runs["distancia_km"] = _to_float(runs["distancia_km"])
     if "velocidade_media" in runs.columns:
         runs["velocidade_media"] = _to_float(runs["velocidade_media"])
-        runs["pace_min_km"] = runs["velocidade_media"].apply(
+        calc = runs["velocidade_media"].apply(
             lambda v: round(1000 / (v * 60), 2) if pd.notna(v) and v > 0 else None
         )
+        if "pace_min_km" not in runs.columns:
+            runs["pace_min_km"] = calc
+        else:
+            runs["pace_min_km"] = runs["pace_min_km"].where(runs["pace_min_km"].notna(), calc)
     return runs
 
 
