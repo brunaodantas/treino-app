@@ -190,15 +190,16 @@ def _init_session(workout: str, state: dict, save_fn):
     for ex in EXERCISES[workout]:
         name = ex["nome"]
         last = _get_last_sets(name, state)
+        default_w = float(ex.get("peso_atual", 0))
+        default_r = int(ex.get("reps", "10").split("-")[0])
         ex_sets = []
         for i in range(ex["series"]):
             if last and i < len(last):
-                w = float(last[i].get("weight", 0))
-                r = int(last[i].get("reps", 0))
+                w = float(last[i].get("weight", default_w))
+                r = int(last[i].get("reps", default_r))
             else:
-                w, r = 0.0, 0
+                w, r = default_w, default_r
             ex_sets.append({"weight": w, "reps": r, "done": False})
-            # Força os widgets a mostrarem os valores do histórico
             st.session_state[f"w_{name}_{i}"] = w
             st.session_state[f"r_{name}_{i}"] = r
         sets[name] = ex_sets
@@ -387,6 +388,8 @@ def _render_session(state: dict, save_fn):
     # Exercícios
     for ex in exercises:
         name = ex["nome"]
+        reps_range = ex.get("reps", "10-12")
+        peso_prog = ex.get("peso_prog")
         ex_sets = session["sets"].get(name, [])
         done_count = sum(1 for s in ex_sets if s["done"])
         all_done = done_count == len(ex_sets) and len(ex_sets) > 0
@@ -399,9 +402,17 @@ def _render_session(state: dict, save_fn):
                 f"{s['weight']}kg×{s['reps']}" for s in last if s.get("done")
             )
 
-        with st.expander(f"{icon} {name}", expanded=not all_done):
+        label = f"{icon} {name}  —  {ex['series']}×{reps_range}"
+        with st.expander(label, expanded=not all_done):
             if last_hint:
                 st.caption(f"Última vez: {last_hint}")
+
+            # Sugestão de progressão: todas as séries feitas com reps no máximo do range
+            if all_done and peso_prog:
+                reps_max = int(reps_range.split("-")[-1])
+                all_at_max = all(s.get("reps", 0) >= reps_max for s in ex_sets if s.get("done"))
+                if all_at_max:
+                    st.success(f"🚀 Progressão sugerida: **{peso_prog:g} kg** na próxima sessão")
 
             for i, s in enumerate(ex_sets):
                 c_w, c_r, c_btn = st.columns([3, 3, 1.2])
@@ -450,12 +461,15 @@ def _render_session(state: dict, save_fn):
 
     # Timer de descanso — calcula estado atual
     _REST_90S = {
-        "Puxada Alta na Polia (Máquina)",
-        "Remada Sentada c/ Pegada em V (Cabo)",
-        "Remada na Máquina (Chest Supported)",
-        "Puxada Fechada na Polia",
-        "Remada Unilateral com Halter",
+        "Puxada Alta Polia",
+        "Remada Sentada c/ Pegada V",
+        "Remada Chest Supported",
+        "Puxada Fechada Polia",
+        "Remada Unilateral Halter",
         "Leg Press 45°",
+        "Supino Inclinado Halter",
+        "Supino Reto Halter",
+        "Supino Reto Máquina",
     }
     last_ex = st.session_state.get("_last_ex", "")
     rest_dur = 90 if last_ex in _REST_90S else 60
