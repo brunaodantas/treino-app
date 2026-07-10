@@ -196,39 +196,62 @@ def fetch_resting_hr(token: str, days: int = 7) -> list[dict]:
 
 
 def fetch_sleep(token: str, days: int = 7) -> list[dict]:
-    """Retorna duração de sono (horas) dos últimos N dias."""
-    body = {
-        "aggregateBy": [{"dataTypeName": "com.google.sleep.segment"}],
-        "bucketByTime": {"durationMillis": 86400000},
-        "startTimeMillis": _days_ago_ms(days),
-        "endTimeMillis": _now_ms(),
-    }
-    resp = requests.post(
-        f"{GOOGLE_FIT_BASE}/dataset:aggregate",
+    """Retorna duração de sono por dia usando a API de sessões do Google Fit."""
+    start_ms = _days_ago_ms(days + 1)
+    end_ms = _now_ms()
+
+    # Sessões de sono (activityType=72)
+    resp = requests.get(
+        f"{GOOGLE_FIT_BASE}/sessions",
         headers={"Authorization": f"Bearer {token}"},
-        json=body,
+        params={
+            "startTime": datetime.fromtimestamp(start_ms / 1000).strftime("%Y-%m-%dT%H:%M:%S.000Z").replace(
+                datetime.fromtimestamp(start_ms / 1000).strftime("%Y-%m-%dT%H:%M:%S"), ""
+            ),
+            "activityType": 72,
+            "includeDeleted": "false",
+        },
     )
+
+    # Fallback: usa formato RFC3339
+    from datetime import timezone
+    start_dt = datetime.fromtimestamp(start_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    end_dt = datetime.fromtimestamp(end_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    resp = requests.get(
+        f"{GOOGLE_FIT_BASE}/sessions",
+        headers={"Authorization": f"Bearer {token}"},
+        params={
+            "startTime": start_dt,
+            "endTime": end_dt,
+            "activityType": 72,
+        },
+    )
+
     if resp.status_code != 200:
         return []
-    results = []
-    for bucket in resp.json().get("bucket", []):
-        start_ms = int(bucket.get("startTimeMillis", 0))
-        date_str = _ms_to_ts(start_ms).strftime("%Y-%m-%d")
-        sleep_ms = 0
-        for ds in bucket.get("dataset", []):
-            for pt in ds.get("point", []):
-                # type 1 = light, 2 = deep, 3 = REM, 4 = awake
-                sleep_type = 0
-                for val in pt.get("value", []):
-                    sleep_type = val.get("intVal", 0)
-                if sleep_type in (1, 2, 3):
-                    end_ns = int(pt.get("endTimeNanos", 0))
-                    start_ns = int(pt.get("startTimeNanos", 0))
-                    sleep_ms += (end_ns - start_ns) / 1_000_000
-        hours = round(sleep_ms / 3_600_000, 1)
-        if hours > 0:
-            results.append({"data": date_str, "sono_horas": hours})
-    return results
+
+    # Agrupa por data de acordar (endTime)
+    from collections import defaultdict
+    daily = defaultdict(float)
+    for s in resp.json().get("session", []):
+        try:
+            end_ms_s = int(s.get("endTimeMillis", 0))
+            start_ms_s = int(s.get("startTimeMillis", 0))
+            dur_h = (end_ms_s - start_ms_s) / 3_600_000
+            if dur_h < 0.5 or dur_h > 16:
+                continue
+            # Usa a data de acordar como referência
+            wake_date = datetime.fromtimestamp(end_ms_s / 1000).strftime("%Y-%m-%d")
+            daily[wake_date] += dur_h
+        except Exception:
+            continue
+
+    return [
+        {"data": d, "sono_horas": round(h, 1)}
+        for d, h in sorted(daily.items(), reverse=True)
+        if h > 0
+    ]
 
 
 def fetch_all(token: str, days: int = 7) -> dict:
