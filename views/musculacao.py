@@ -26,14 +26,17 @@ _GLOBAL_TIMER_TPL = """
   .gt{text-align:center;color:#888;font-size:13px;padding:4px 0;}
   .gt b{color:#FAFAFA;font-size:1.15rem;font-variant-numeric:tabular-nums;letter-spacing:1px;}
 </style>
-<div class="gt">⏱ Treino em andamento &nbsp;—&nbsp; <b id="t">00:00</b></div>
+<div class="gt">⏱ Treino em andamento &nbsp;—&nbsp; <b id="t">LABEL_DEFAULT</b></div>
 <script>
-const S = new Date("STARTED_AT").getTime();
-function tick(){
-  const e=Math.max(0,Math.floor((Date.now()-S)/1000)),m=Math.floor(e/60),s=e%60;
-  document.getElementById('t').textContent=m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+const SA = "STARTED_AT";
+if (SA) {
+  const S = new Date(SA).getTime();
+  function tick(){
+    const e=Math.max(0,Math.floor((Date.now()-S)/1000)),m=Math.floor(e/60),s=e%60;
+    document.getElementById('t').textContent=m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+  }
+  tick(); setInterval(tick,1000);
 }
-tick(); setInterval(tick,1000);
 </script>
 """
 
@@ -147,7 +150,13 @@ const w=p||window;if(w._twl){w._twl.release();w._twl=null;}})();
 
 
 def _make_global_timer(started_at: str) -> str:
-    return _GLOBAL_TIMER_TPL.replace("STARTED_AT", started_at)
+    label = "00:00" if not started_at else "00:00"
+    waiting = "aguardando 1ª série..." if not started_at else "00:00"
+    return (
+        _GLOBAL_TIMER_TPL
+        .replace("STARTED_AT", started_at or "")
+        .replace("LABEL_DEFAULT", "aguardando 1ª série..." if not started_at else "00:00")
+    )
 
 
 def _make_rest_timer(remaining: int = 0, is_running: bool = False) -> str:
@@ -207,9 +216,11 @@ def _init_session(workout: str, state: dict, save_fn):
     st.session_state.active_workout = {
         "workout": workout,
         "started_at": datetime.now().isoformat(),
+        "first_set_ts": None,
         "sets": sets,
     }
     st.session_state._rest_ts = 0.0
+    st.session_state._ex_rest_ts = {}
     _save_active_workout(state, save_fn)
 
 
@@ -305,6 +316,8 @@ def render_musculacao(state: dict, hevy_df, save_fn):
         st.session_state._rest_ts = 0.0
     if "_last_ex" not in st.session_state:
         st.session_state._last_ex = ""
+    if "_ex_rest_ts" not in st.session_state:
+        st.session_state._ex_rest_ts = {}
 
     if st.session_state.active_workout is None:
         _render_picker(state, save_fn)
@@ -374,8 +387,9 @@ def _render_session(state: dict, save_fn):
             save_fn(state)
             st.rerun()
 
-    # Timer global de sessão
-    _components.html(_make_global_timer(started_at), height=32)
+    # Timer global — começa na primeira série marcada
+    first_set_ts = session.get("first_set_ts") or ""
+    _components.html(_make_global_timer(first_set_ts), height=32)
 
     # Progresso
     all_sets = [s for ex in exercises for s in session["sets"].get(ex["nome"], [])]
@@ -384,6 +398,12 @@ def _render_session(state: dict, save_fn):
     st.progress(progress, text=f"{len(done_sets)} / {len(all_sets)} séries")
 
     st.markdown("---")
+
+    _REST_90S = {
+        "Puxada Alta Polia", "Remada Sentada c/ Pegada V", "Remada Chest Supported",
+        "Puxada Fechada Polia", "Remada Unilateral Halter", "Leg Press 45°",
+        "Supino Inclinado Halter", "Supino Reto Halter", "Supino Reto Máquina",
+    }
 
     # Exercícios
     for ex in exercises:
@@ -407,7 +427,7 @@ def _render_session(state: dict, save_fn):
             if last_hint:
                 st.caption(f"Última vez: {last_hint}")
 
-            # Sugestão de progressão: todas as séries feitas com reps no máximo do range
+            # Sugestão de progressão
             if all_done and peso_prog:
                 reps_max = int(reps_range.split("-")[-1])
                 all_at_max = all(s.get("reps", 0) >= reps_max for s in ex_sets if s.get("done"))
@@ -452,39 +472,29 @@ def _render_session(state: dict, save_fn):
                     else:
                         if st.button("○", key=f"chk_{name}_{i}"):
                             s["done"] = True
-                            st.session_state._rest_ts = time.time()
+                            now_ts = time.time()
+                            st.session_state._ex_rest_ts[name] = now_ts
+                            st.session_state._rest_ts = now_ts
                             st.session_state._last_ex = name
+                            # Marca timestamp da primeira série feita
+                            if not session.get("first_set_ts"):
+                                session["first_set_ts"] = datetime.now().isoformat()
                             _save_active_workout(state, save_fn)
                             st.rerun()
 
-    st.markdown("---")
-
-    # Timer de descanso — calcula estado atual
-    _REST_90S = {
-        "Puxada Alta Polia",
-        "Remada Sentada c/ Pegada V",
-        "Remada Chest Supported",
-        "Puxada Fechada Polia",
-        "Remada Unilateral Halter",
-        "Leg Press 45°",
-        "Supino Inclinado Halter",
-        "Supino Reto Halter",
-        "Supino Reto Máquina",
-    }
-    last_ex = st.session_state.get("_last_ex", "")
-    rest_dur = 90 if last_ex in _REST_90S else 60
-    ts = st.session_state._rest_ts
-    if ts and ts > 0:
-        elapsed_r = time.time() - ts
-        remaining = max(0, int(rest_dur - elapsed_r))
-        is_running = remaining > 0
-        if not is_running:
-            st.session_state._rest_ts = 0.0
-    else:
-        remaining = 0
-        is_running = False
-
-    _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
+            # ── Timer de descanso por exercício ──────────────────────────────
+            rest_dur = 90 if name in _REST_90S else 60
+            ex_ts = st.session_state._ex_rest_ts.get(name, 0)
+            if ex_ts and ex_ts > 0:
+                elapsed_r = time.time() - ex_ts
+                remaining = max(0, int(rest_dur - elapsed_r))
+                is_running = remaining > 0
+                if not is_running:
+                    st.session_state._ex_rest_ts[name] = 0
+            else:
+                remaining = 0
+                is_running = False
+            _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
 
     st.markdown("---")
 
