@@ -3,6 +3,7 @@ import streamlit as st
 import streamlit.components.v1 as _components
 from datetime import datetime
 from logic.schedule import EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict
+from utils import now_br
 
 MUSCLE_EMOJI = {
     "peito": "🫁", "ombro_lat": "💪", "triceps": "💪",
@@ -215,7 +216,7 @@ def _init_session(workout: str, state: dict, save_fn):
 
     st.session_state.active_workout = {
         "workout": workout,
-        "started_at": datetime.now().isoformat(),
+        "started_at": now_br().isoformat(),
         "first_set_ts": None,
         "sets": sets,
     }
@@ -229,7 +230,7 @@ def _finish_workout(state: dict, save_fn):
 
     session = st.session_state.active_workout
     workout = session["workout"]
-    now = datetime.now()
+    now = now_br()
     started_at = session.get("started_at", now.isoformat())
 
     volume = sum(
@@ -366,7 +367,7 @@ def _render_session(state: dict, save_fn):
     session = st.session_state.active_workout
     workout = session["workout"]
     exercises = EXERCISES[workout]
-    started_at = session.get("started_at", datetime.now().isoformat())
+    started_at = session.get("started_at", now_br().isoformat())
 
     # Wake lock
     if not st.session_state.get("_wakelock_active"):
@@ -478,7 +479,7 @@ def _render_session(state: dict, save_fn):
                             st.session_state._last_ex = name
                             # Marca timestamp da primeira série feita
                             if not session.get("first_set_ts"):
-                                session["first_set_ts"] = datetime.now().isoformat()
+                                session["first_set_ts"] = now_br().isoformat()
                             _save_active_workout(state, save_fn)
                             st.rerun()
 
