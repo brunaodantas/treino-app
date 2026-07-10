@@ -185,6 +185,12 @@ if "app_state" not in st.session_state:
 STRAVA_CACHE = os.path.join(BASE_DIR, "data", "strava_cache.json")
 HEALTH_CACHE = os.path.join(BASE_DIR, "data", "health_cache.json")
 
+# Força reset do cache se vier ?sync=1 na URL
+if st.query_params.get("sync") == "1":
+    st.session_state.pop("strava_df", None)
+    st.query_params.clear()
+    st.rerun()
+
 if "strava_df" not in st.session_state:
     import pandas as pd, json as _json
     _base_records = []
