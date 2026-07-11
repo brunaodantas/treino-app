@@ -6,6 +6,22 @@ ADAPTATION_MESSAGE = (
     "Mantenha **3 séries de 10-12 repetições**, sem buscar a falha concêntrica nesta fase de retorno."
 )
 
+PERIODIZATION_PHASES = [
+    {"nome": "Adaptação",   "semanas": (1, 4),  "descricao": "Foco em execução, 3×10-12, sem falha concêntrica"},
+    {"nome": "Hipertrofia", "semanas": (5, 8),  "descricao": "Volume +10-15%, 4×10-12, chegando perto da falha"},
+    {"nome": "Força",       "semanas": (9, 12), "descricao": "Intensidade ↑, 4×6-8, progressão de carga semanal"},
+]
+
+
+def get_current_phase(state: dict) -> dict:
+    week = get_adaptation_week(state)
+    for phase in PERIODIZATION_PHASES:
+        start, end = phase["semanas"]
+        if start <= week <= end:
+            return {**phase, "semana_na_fase": week - start + 1, "semana_global": week}
+    last = PERIODIZATION_PHASES[-1]
+    return {**last, "semana_na_fase": week - last["semanas"][0] + 1, "semana_global": week}
+
 
 def is_adaptation_phase(state: dict) -> bool:
     week = get_adaptation_week(state)

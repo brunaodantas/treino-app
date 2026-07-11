@@ -1,57 +1,127 @@
+import json
 import streamlit as st
 from datetime import date, datetime
+from pathlib import Path
+
 from logic.schedule import (
     get_next_workout, check_72h_conflict, mark_workout_done,
     WORKOUT_LABELS, WORKOUT_SEQUENCE,
 )
 from logic.running import (
-    is_running_day, is_rest_day, get_day_label, get_current_distance,
-    EQUIPMENT_REMINDER,
+    is_running_day, is_rest_day, is_optional_run_day, get_run_info,
+    get_day_label, get_current_distance, EQUIPMENT_REMINDER,
 )
 from logic.adaptation import (
     is_adaptation_phase, get_adaptation_week, get_workouts_in_current_week,
-    ADAPTATION_MESSAGE, ADAPTATION_WEEKS, WORKOUTS_PER_WEEK,
+    get_current_phase, ADAPTATION_MESSAGE, ADAPTATION_WEEKS, WORKOUTS_PER_WEEK,
+    PERIODIZATION_PHASES,
 )
+
+
+def _get_latest_hrv() -> float | None:
+    log_path = Path(__file__).parent.parent / "data" / "health_log.json"
+    if not log_path.exists():
+        return None
+    try:
+        with open(log_path) as f:
+            data = json.load(f)
+        for entry in data:
+            if entry.get("hrv"):
+                return float(entry["hrv"])
+    except Exception:
+        pass
+    return None
 
 
 def render_dashboard(state: dict, save_fn):
     today = date.today()
+    today_str = today.isoformat()
     day_name = get_day_label(today)
+    weekday = today.weekday()
 
     st.markdown(f"### {today.strftime('%d/%m/%Y')} — {day_name}")
     st.markdown("---")
 
-    # Informativo do dia (não bloqueia acesso a treinos)
+    hrv = _get_latest_hrv()
+
+    # ── Check-in matinal ───────────────────────────────────────────────────────
+    checkin_data = state.setdefault("checkin", {})
+    today_checkin = checkin_data.get(today_str, {})
+
+    with st.expander("📋 Check-in de hoje", expanded=not today_checkin):
+        sono_val = today_checkin.get("sono", 7)
+        apetite_val = today_checkin.get("apetite", 7)
+        estresse_val = today_checkin.get("estresse", 3)
+
+        sono = st.slider("Qualidade do sono (1-10)", 1, 10, sono_val, key="ci_sono")
+        apetite = st.slider("Apetite (1-10)", 1, 10, apetite_val, key="ci_apetite")
+        estresse = st.slider("Nível de estresse (1-10)", 1, 10, estresse_val, key="ci_estresse")
+
+        if st.button("Salvar check-in", use_container_width=True):
+            checkin_data[today_str] = {"sono": sono, "apetite": apetite, "estresse": estresse}
+            state["checkin"] = checkin_data
+            save_fn(state)
+            st.success("Check-in salvo!")
+            st.rerun()
+
+        # Alerta combinado
+        hrv_baixo = hrv is not None and hrv < 27
+        if hrv_baixo and sono < 6 and apetite < 4:
+            st.warning("⚠️ Múltiplos indicadores de fadiga. Considere descanso ou treino leve hoje.")
+
+    # ── Informativo do dia ─────────────────────────────────────────────────────
     running = is_running_day(today)
     rest = is_rest_day(today)
+    optional_run = is_optional_run_day(today)
+    run_info = get_run_info(today)
     distance = get_current_distance(state)
     next_wk = get_next_workout(state)
 
     if rest:
-        st.info(f"💤 Dia de descanso sugerido — mas você decide se treina ou não.")
-    elif running:
-        st.info(f"🏃 Corrida sugerida hoje — **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
+        st.info("💤 Dia de descanso sugerido — mas você decide se treina ou não.")
+    elif running and run_info:
+        st.info(f"🏃 {run_info['descricao']} · **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
+    elif optional_run and run_info:
+        hrv_ok = hrv is None or hrv >= 27
+        if hrv_ok:
+            st.info(f"🏃 {run_info['descricao']} — HRV ok ({hrv:.1f})" if hrv else f"🏃 {run_info['descricao']}")
+        else:
+            st.warning(f"🚶 Corrida opcional cancelada — HRV {hrv:.1f} (< 27). Priorize o descanso.")
+
+    # Alerta HRV na sexta (musculação condicional)
+    if weekday == 4 and hrv is not None and hrv < 27:
+        from logic.schedule import EXERCISES_C_REDUCED
+        st.warning(
+            f"⚠️ HRV {hrv:.1f} (< 27). Recomendação: descanso ou treino reduzido de pernas — "
+            f"apenas **Leg Press** + **Adução Quadril**."
+        )
+        with st.expander("Ver treino reduzido sugerido"):
+            for ex in EXERCISES_C_REDUCED:
+                st.markdown(f"- **{ex['nome']}** — {ex['series']}×{ex['reps']} · {ex['peso_atual']} kg")
 
     st.markdown("---")
 
-    # Fase de adaptação
-    week = get_adaptation_week(state)
-    in_adaptation = is_adaptation_phase(state)
+    # ── Periodização ──────────────────────────────────────────────────────────
+    phase = get_current_phase(state)
+    week = phase["semana_global"]
+    phase_week = phase["semana_na_fase"]
+    phase_start, phase_end = phase["semanas"]
+    phase_duration = phase_end - phase_start + 1
+
     col1, col2 = st.columns([2, 1])
     with col1:
-        if in_adaptation:
+        st.markdown(f"**{phase['nome']} — Semana {phase_week} de {phase_duration}** (semana {week} no total)")
+        st.progress(min(phase_week / phase_duration, 1.0))
+        st.caption(phase["descricao"])
+        if is_adaptation_phase(state):
             done_in_week = get_workouts_in_current_week(state)
-            st.markdown(f"**Fase de Adaptação — Semana {week} de {ADAPTATION_WEEKS}**")
-            st.progress(min(week / ADAPTATION_WEEKS, 1.0))
-            st.caption(f"{done_in_week}/{WORKOUTS_PER_WEEK} treinos desta semana — faltam {WORKOUTS_PER_WEEK - done_in_week} para avançar")
+            st.caption(f"{done_in_week}/{WORKOUTS_PER_WEEK} treinos desta semana")
             st.warning(ADAPTATION_MESSAGE)
-        else:
-            st.success(f"✅ Fase de Adaptação concluída")
     with col2:
         week_override = st.number_input(
             "Ajustar semana", min_value=1, max_value=20,
             value=week, step=1, key="week_override",
-            help="Ajuste manual da semana de adaptação"
+            help="Ajuste manual da semana de periodização"
         )
         if week_override != week:
             state["adaptation_week_override"] = week_override
@@ -60,7 +130,7 @@ def render_dashboard(state: dict, save_fn):
 
     st.markdown("---")
 
-    # Botões de ação
+    # ── Botões de ação ─────────────────────────────────────────────────────────
     col_a, col_b = st.columns(2)
 
     with col_a:

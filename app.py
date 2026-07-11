@@ -68,6 +68,7 @@ DEFAULT_STATE = {
     "running_week_start": _last_monday(),
     "running_base_km": 3.0,
     "use_e_next": False,
+    "checkin": {},
 }
 
 # ── State persistence ──────────────────────────────────────────────────────────

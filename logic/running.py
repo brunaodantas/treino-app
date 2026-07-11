@@ -2,6 +2,15 @@ from datetime import date, timedelta
 
 RUNNING_DAYS = {0: "Segunda", 1: "Terça", 2: "Quarta", 5: "Sábado"}
 REST_DAYS = {3: "Quinta", 6: "Domingo"}
+RUNNING_OPTIONAL_DAYS = {4}  # Sexta — corrida opcional se HRV ≥ 27
+
+DAY_RUN_TYPE = {
+    0: {"tipo": "Z1 ativa", "duracao": "20 min", "descricao": "Corrida Z1 — 20 min, FC ≤ 130bpm"},
+    1: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda)"},
+    2: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda)"},
+    4: {"tipo": "leve opcional", "duracao": "20 min", "descricao": "Corrida leve opcional — só se HRV ≥ 27"},
+    5: {"tipo": "esteira intervalada", "duracao": "25-30 min", "descricao": "Corrida esteira intervalada (25-30 min)"},
+}
 
 EQUIPMENT_REMINDER = "🛡️ **Equipamento obrigatório:** Palmilha plana de Gel PU — EU 41-42 / 260mm"
 MAX_DISTANCE_KM = 10.0
@@ -10,6 +19,16 @@ MAX_DISTANCE_KM = 10.0
 def is_running_day(d: date = None) -> bool:
     d = d or date.today()
     return d.weekday() in RUNNING_DAYS
+
+
+def is_optional_run_day(d: date = None) -> bool:
+    d = d or date.today()
+    return d.weekday() in RUNNING_OPTIONAL_DAYS
+
+
+def get_run_info(d: date = None) -> dict:
+    d = d or date.today()
+    return DAY_RUN_TYPE.get(d.weekday(), {})
 
 
 def is_rest_day(d: date = None) -> bool:

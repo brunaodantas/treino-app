@@ -19,6 +19,11 @@ WORKOUT_LABELS = {
     "E": "Treino E — Ombros · Trapézio · Braços",
 }
 
+EXERCISES_C_REDUCED = [
+    {"nome": "Leg Press 45°",          "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
+    {"nome": "Adução Quadril Máquina", "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
+]
+
 EXERCISES = {
     "A": [
         {"nome": "Supino Inclinado Halter",    "series": 3, "reps": "8-10",  "peso_atual": 20.0, "peso_prog": 22.0},
