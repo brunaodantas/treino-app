@@ -40,7 +40,13 @@ def render_dashboard(state: dict, save_fn):
     day_name = get_day_label(today)
     weekday = today.weekday()
 
-    st.markdown(f"### {today.strftime('%d/%m/%Y')} — {day_name}")
+    col_title, col_refresh = st.columns([5, 1])
+    with col_title:
+        st.markdown(f"### {today.strftime('%d/%m/%Y')} — {day_name}")
+    with col_refresh:
+        if st.button("🔄", help="Recarregar app"):
+            import streamlit.components.v1 as _cv1
+            _cv1.html("<script>window.parent.location.reload();</script>", height=0)
     st.markdown("---")
 
     hrv = _get_latest_hrv()
