@@ -288,11 +288,24 @@ if "intervals_data" not in st.session_state:
     try:
         from parsers.intervals import is_configured, fetch_wellness
         if is_configured():
-            st.session_state.intervals_data = fetch_wellness(days=7)
+            st.session_state.intervals_data = fetch_wellness(days=14)
         else:
             st.session_state.intervals_data = None
     except Exception:
         st.session_state.intervals_data = None
+
+# Fallback: health_log.json local (mesma estrutura que intervals_data)
+if "health_log_data" not in st.session_state:
+    _hlog_path = os.path.join(BASE_DIR, "data", "health_log.json")
+    if os.path.exists(_hlog_path):
+        try:
+            import json as _json
+            with open(_hlog_path, encoding="utf-8") as _f:
+                st.session_state.health_log_data = _json.load(_f)
+        except Exception:
+            st.session_state.health_log_data = None
+    else:
+        st.session_state.health_log_data = None
 
 export_dados_treino(st.session_state.app_state)
 
@@ -374,7 +387,7 @@ with tab5:
         state,
         st.session_state.gfit_data,
         st.session_state.health_data,
-        st.session_state.get("intervals_data"),
+        st.session_state.intervals_data or st.session_state.get("health_log_data"),
     )
 
 with tab6:
@@ -478,4 +491,42 @@ try {{
         st.info("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nos Secrets do Streamlit para ativar o Google Fit.")
 
     st.markdown("---")
-    st.caption("v1.4 · treino-bruno.streamlit.app")
+
+    # Intervals.icu
+    st.subheader("📊 Intervals.icu")
+    _s = st.session_state.app_state
+    _iv_creds = _s.get("intervals_credentials", {})
+    _iv_connected = bool(_iv_creds.get("athlete_id") and _iv_creds.get("api_key"))
+    if _iv_connected:
+        st.success("✅ Intervals.icu conectado")
+        col_sync_iv, col_disc_iv = st.columns(2)
+        with col_sync_iv:
+            if st.button("🔄 Sincronizar Intervals", use_container_width=True):
+                st.session_state.pop("intervals_data", None)
+                st.rerun()
+        with col_disc_iv:
+            if st.button("Desconectar Intervals", use_container_width=True):
+                _s.pop("intervals_credentials", None)
+                st.session_state.intervals_data = None
+                save_state(_s)
+                st.rerun()
+    else:
+        st.markdown("Entre com suas credenciais do Intervals.icu:")
+        with st.form("intervals_form"):
+            _aid_input = st.text_input("Athlete ID", placeholder="iXXXXXXX")
+            _key_input = st.text_input("API Key", type="password", placeholder="sua chave API")
+            if st.form_submit_button("💾 Conectar Intervals", use_container_width=True):
+                if _aid_input.strip() and _key_input.strip():
+                    _s["intervals_credentials"] = {
+                        "athlete_id": _aid_input.strip(),
+                        "api_key": _key_input.strip(),
+                    }
+                    save_state(_s)
+                    st.session_state.pop("intervals_data", None)
+                    st.toast("✅ Intervals.icu conectado!", icon="📊")
+                    st.rerun()
+                else:
+                    st.error("Preencha o Athlete ID e a API Key.")
+
+    st.markdown("---")
+    st.caption("v1.5 · treino-bruno.streamlit.app")

@@ -6,12 +6,24 @@ INTERVALS_BASE = "https://intervals.icu/api/v1"
 
 
 def _get_credentials():
+    # Tenta secrets do Streamlit primeiro
     try:
         athlete_id = st.secrets["INTERVALS_ATHLETE_ID"]
         api_key = st.secrets["INTERVALS_API_KEY"]
-        return athlete_id, api_key
+        if athlete_id and api_key:
+            return athlete_id, api_key
     except Exception:
-        return None, None
+        pass
+    # Fallback: credenciais salvas no state pelo usuário
+    try:
+        creds = st.session_state.app_state.get("intervals_credentials", {})
+        aid = creds.get("athlete_id")
+        key = creds.get("api_key")
+        if aid and key:
+            return aid, key
+    except Exception:
+        pass
+    return None, None
 
 
 def is_configured() -> bool:

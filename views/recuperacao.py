@@ -26,9 +26,9 @@ def _sleep_status(horas):
 def _hrv_status(hrv):
     if hrv is None:
         return "⚪", "Sem dados"
-    if hrv >= 60:
+    if hrv >= 31:
         return "🟢", "Ótimo"
-    if hrv >= 40:
+    if hrv >= 27:
         return "🟡", "Normal"
     return "🔴", "Baixo"
 
@@ -38,9 +38,9 @@ def _recovery_score(fc, sleep_h, hrv=None):
     total = 0
     if hrv is not None:
         total += 2  # HRV tem peso maior
-        if hrv >= 60:
+        if hrv >= 31:
             score += 2
-        elif hrv >= 40:
+        elif hrv >= 27:
             score += 1
     if fc is not None:
         total += 1
