@@ -126,7 +126,7 @@ def render_dashboard(state: dict, save_fn):
     if rest and not today_workout:
         st.info("💤 Dia de descanso sugerido.")
     if running and run_info:
-        st.info(f"🏃 {run_info['descricao']} · **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
+        st.info(f"🏃 {run_info['descricao']} · **{distance:.1f} km**")
     elif optional_run and run_info:
         hrv_ok = hrv is None or hrv >= 27
         if hrv_ok:

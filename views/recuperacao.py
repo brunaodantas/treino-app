@@ -205,14 +205,6 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
 
     st.markdown("---")
 
-    # Alerta de proteção articular
-    st.markdown("### 🦵 Proteção Articular")
-    st.warning(
-        "⚠️ **JOELHO:** Sem agachamento livre pesado. "
-        "Use sempre Leg Press 45°, Cadeira Extensora e Adutora.",
-        icon=None,
-    )
-
     # Histórico 7 dias
     if gfit_data or health_data or intervals_data:
         st.markdown("#### Últimos 7 dias")
