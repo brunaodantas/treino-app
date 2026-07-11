@@ -5,7 +5,8 @@ from pathlib import Path
 
 from logic.schedule import (
     get_next_workout, check_72h_conflict, mark_workout_done,
-    WORKOUT_LABELS, WORKOUT_SEQUENCE,
+    get_scheduled_workout, get_week_schedule, get_next_scheduled,
+    WORKOUT_LABELS, WORKOUT_SEQUENCE, DAY_NAMES,
 )
 from logic.running import (
     is_running_day, is_rest_day, is_optional_run_day, get_run_info,
@@ -14,7 +15,6 @@ from logic.running import (
 from logic.adaptation import (
     is_adaptation_phase, get_adaptation_week, get_workouts_in_current_week,
     get_current_phase, ADAPTATION_MESSAGE, ADAPTATION_WEEKS, WORKOUTS_PER_WEEK,
-    PERIODIZATION_PHASES,
 )
 
 
@@ -64,38 +64,65 @@ def render_dashboard(state: dict, save_fn):
             st.success("Check-in salvo!")
             st.rerun()
 
-        # Alerta combinado
         hrv_baixo = hrv is not None and hrv < 27
         if hrv_baixo and sono < 6 and apetite < 4:
             st.warning("⚠️ Múltiplos indicadores de fadiga. Considere descanso ou treino leve hoje.")
 
-    # ── Informativo do dia ─────────────────────────────────────────────────────
+    st.markdown("---")
+
+    # ── Agenda semanal ─────────────────────────────────────────────────────────
+    week_sched = get_week_schedule(state)
+    today_workout = get_scheduled_workout(state)
+    next_date, next_workout = get_next_scheduled(state)
+
+    st.markdown("**Agenda desta semana:**")
+    cols = st.columns(3)
+    for col, slot in zip(cols, week_sched):
+        label = WORKOUT_LABELS.get(slot["treino"], slot["treino"])
+        short = f"Treino {slot['treino']}" if slot["treino"] else "—"
+        date_str = slot["data"].strftime("%d/%m")
+        if slot["hoje"]:
+            col.markdown(f"**🔵 {slot['dia']} {date_str}**  \n**{short}**")
+        else:
+            col.markdown(f"{slot['dia']} {date_str}  \n{short}")
+
+    if today_workout:
+        st.info(f"🏋️ **Hoje:** {WORKOUT_LABELS.get(today_workout, today_workout)}")
+    elif next_date and next_workout:
+        days_until = (next_date - today).days
+        day_label = DAY_NAMES.get(next_date.weekday(), next_date.strftime("%A"))
+        when = "amanhã" if days_until == 1 else f"em {days_until} dias"
+        st.info(f"📅 **Próximo:** {WORKOUT_LABELS.get(next_workout, next_workout)} — {day_label} {next_date.strftime('%d/%m')} ({when})")
+
+    st.markdown("---")
+
+    # ── Informativo de corrida ─────────────────────────────────────────────────
     running = is_running_day(today)
     rest = is_rest_day(today)
     optional_run = is_optional_run_day(today)
     run_info = get_run_info(today)
     distance = get_current_distance(state)
-    next_wk = get_next_workout(state)
 
-    if rest:
-        st.info("💤 Dia de descanso sugerido — mas você decide se treina ou não.")
-    elif running and run_info:
+    if rest and not today_workout:
+        st.info("💤 Dia de descanso sugerido.")
+    if running and run_info:
         st.info(f"🏃 {run_info['descricao']} · **{distance:.1f} km** · {EQUIPMENT_REMINDER}")
     elif optional_run and run_info:
         hrv_ok = hrv is None or hrv >= 27
         if hrv_ok:
-            st.info(f"🏃 {run_info['descricao']} — HRV ok ({hrv:.1f})" if hrv else f"🏃 {run_info['descricao']}")
+            hrv_str = f" — HRV {hrv:.1f}" if hrv else ""
+            st.info(f"🏃 {run_info['descricao']}{hrv_str}")
         else:
-            st.warning(f"🚶 Corrida opcional cancelada — HRV {hrv:.1f} (< 27). Priorize o descanso.")
+            st.warning(f"🚶 Corrida opcional cancelada — HRV {hrv:.1f} (< 27).")
 
-    # Alerta HRV na sexta (musculação condicional)
+    # Alerta HRV na sexta (treino reduzido)
     if weekday == 4 and hrv is not None and hrv < 27:
         from logic.schedule import EXERCISES_C_REDUCED
         st.warning(
-            f"⚠️ HRV {hrv:.1f} (< 27). Recomendação: descanso ou treino reduzido de pernas — "
-            f"apenas **Leg Press** + **Adução Quadril**."
+            f"⚠️ HRV {hrv:.1f} (< 27). Recomendação: treino reduzido de pernas — "
+            f"**Leg Press** + **Adução Quadril** apenas."
         )
-        with st.expander("Ver treino reduzido sugerido"):
+        with st.expander("Ver treino reduzido"):
             for ex in EXERCISES_C_REDUCED:
                 st.markdown(f"- **{ex['nome']}** — {ex['series']}×{ex['reps']} · {ex['peso_atual']} kg")
 
@@ -131,29 +158,34 @@ def render_dashboard(state: dict, save_fn):
     st.markdown("---")
 
     # ── Botões de ação ─────────────────────────────────────────────────────────
+    workout_to_mark = today_workout or get_next_workout(state)
+    conflict, conflict_msg = check_72h_conflict(state, workout_to_mark)
+    if conflict:
+        st.warning(conflict_msg)
+
     col_a, col_b = st.columns(2)
 
     with col_a:
-        conflict, conflict_msg = check_72h_conflict(state, next_wk)
-        if conflict:
-            st.warning(conflict_msg)
-        label = f"✅ Marcar **Treino {next_wk}** como Concluído"
+        if today_workout:
+            label = f"✅ Concluir **{WORKOUT_LABELS.get(today_workout, today_workout)}**"
+        else:
+            label = f"✅ Marcar **Treino {workout_to_mark}** como Concluído"
         if st.button(label, type="primary", use_container_width=True):
-            state = mark_workout_done(state)
+            state = mark_workout_done(state, workout=workout_to_mark)
             save_fn(state)
-            st.success(f"Treino {next_wk} registrado! Próximo: {WORKOUT_SEQUENCE[state['current_index'] % 4]}")
+            _, prox = get_next_scheduled(state)
+            st.success(f"Treino registrado! Próximo: {prox or '—'}")
             st.rerun()
 
     with col_b:
         e_conflict, e_msg = check_72h_conflict(state, "E")
-        e_label = "⚡ Inserir Treino E (Curinga)"
         if state.get("use_e_next"):
             if st.button("❌ Cancelar Treino E", use_container_width=True):
                 state["use_e_next"] = False
                 save_fn(state)
                 st.rerun()
         else:
-            if st.button(e_label, disabled=e_conflict, use_container_width=True):
+            if st.button("⚡ Inserir Treino E (Curinga)", disabled=e_conflict, use_container_width=True):
                 state["use_e_next"] = True
                 save_fn(state)
                 st.rerun()
@@ -170,8 +202,7 @@ def _render_workout_log(state: dict):
         return
     st.markdown("#### Histórico recente")
     cols = st.columns(4)
-    headers = ["Data", "Treino", "Horário", ""]
-    for col, h in zip(cols, headers):
+    for col, h in zip(cols, ["Data", "Treino", "Horário", ""]):
         col.markdown(f"**{h}**")
 
     for entry in log[:8]:

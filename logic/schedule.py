@@ -1,7 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from utils import now_br
 
 WORKOUT_SEQUENCE = ["A", "B", "C", "D"]
+
+# Dias de musculação: Terça=1, Quarta=2, Sexta=4 (weekday numbers)
+WORKOUT_DAYS = [1, 2, 4]
+DAY_NAMES = {1: "Terça", 2: "Quarta", 4: "Sexta"}
 
 MUSCLE_GROUPS = {
     "A": {"peito", "ombro_lat", "triceps"},
@@ -67,11 +71,91 @@ EXERCISES = {
 }
 
 
+# ── Agenda semanal com rotação deslizante ──────────────────────────────────────
+
+def _schedule_origin(state: dict) -> date:
+    """Segunda-feira da semana em que o app foi iniciado (âncora do ciclo)."""
+    raw = state.get("app_start_date", str(date.today()))
+    try:
+        d = date.fromisoformat(raw)
+    except ValueError:
+        d = date.today()
+    return d - timedelta(days=d.weekday())  # normaliza para segunda
+
+
+def get_cycle_week(state: dict, ref: date = None) -> int:
+    """Número de semanas desde o início (0-indexed), para calcular offset do ciclo."""
+    ref = ref or date.today()
+    origin = _schedule_origin(state)
+    return max(0, (ref - origin).days // 7)
+
+
+def get_scheduled_workout(state: dict, d: date = None) -> str | None:
+    """
+    Retorna o treino programado para a data d.
+    Retorna None se d não for dia de musculação (Ter/Qua/Sex).
+
+    Ciclo de 4 semanas:
+      Sem 1: Ter=A Qua=B Sex=C
+      Sem 2: Ter=D Qua=A Sex=B
+      Sem 3: Ter=C Qua=D Sex=A
+      Sem 4: Ter=B Qua=C Sex=D
+    Fórmula: SEQUENCE[(slot_index - week_num) % 4]
+    """
+    d = d or date.today()
+    weekday = d.weekday()
+    if weekday not in WORKOUT_DAYS:
+        return None
+    slot_index = WORKOUT_DAYS.index(weekday)
+    week_num = get_cycle_week(state, d)
+    return WORKOUT_SEQUENCE[(slot_index - week_num) % 4]
+
+
+def get_week_schedule(state: dict, week_offset: int = 0) -> list:
+    """
+    Retorna a agenda da semana atual + week_offset semanas.
+    Lista de dicts: {dia, data, treino, hoje}
+    """
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_monday = monday + timedelta(weeks=week_offset)
+    result = []
+    for weekday in WORKOUT_DAYS:
+        d = week_monday + timedelta(days=weekday)
+        result.append({
+            "dia": DAY_NAMES[weekday],
+            "data": d,
+            "treino": get_scheduled_workout(state, d),
+            "hoje": d == today,
+        })
+    return result
+
+
+def get_next_scheduled(state: dict) -> tuple:
+    """Retorna (date, workout_letter) do próximo dia de musculação a partir de hoje."""
+    today = date.today()
+    for days_ahead in range(10):
+        d = today + timedelta(days=days_ahead)
+        w = get_scheduled_workout(state, d)
+        if w:
+            return d, w
+    return None, None
+
+
 def get_next_workout(state: dict) -> str:
+    """Retorna o treino da agenda para hoje (se dia de musculação) ou o próximo agendado."""
     if state.get("use_e_next"):
         return "E"
-    return WORKOUT_SEQUENCE[state["current_index"] % 4]
+    today_w = get_scheduled_workout(state)
+    if today_w:
+        return today_w
+    _, next_w = get_next_scheduled(state)
+    if next_w:
+        return next_w
+    return WORKOUT_SEQUENCE[state.get("current_index", 0) % 4]
 
+
+# ── Conflito 72h ──────────────────────────────────────────────────────────────
 
 def check_72h_conflict(state: dict, workout: str):
     """Returns (has_conflict, message)."""
@@ -102,18 +186,25 @@ def check_72h_conflict(state: dict, workout: str):
     return False, ""
 
 
-def mark_workout_done(state: dict) -> dict:
-    workout = get_next_workout(state)
+# ── Marcar treino concluído ───────────────────────────────────────────────────
+
+def mark_workout_done(state: dict, workout: str = None) -> dict:
+    if state.get("use_e_next"):
+        workout = "E"
+        state["use_e_next"] = False
+    elif workout is None:
+        workout = get_next_workout(state)
+
+    now = now_br()
     entry = {
-        "date": str(datetime.now().date()),
+        "date": now.date().isoformat(),
         "workout": workout,
-        "completed_at": datetime.now().isoformat(),
+        "completed_at": now.isoformat(),
     }
     state["workout_log"] = [entry] + state.get("workout_log", [])
 
-    if state.get("use_e_next"):
-        state["use_e_next"] = False
-    else:
-        state["current_index"] = (state["current_index"] + 1) % 4
+    # Mantém current_index em sincronia com a agenda
+    if workout in WORKOUT_SEQUENCE:
+        state["current_index"] = (WORKOUT_SEQUENCE.index(workout) + 1) % 4
 
     return state
