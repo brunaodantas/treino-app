@@ -85,10 +85,13 @@ def _schedule_origin(state: dict) -> date:
 
 
 def get_cycle_week(state: dict, ref: date = None) -> int:
-    """Número de semanas desde o início (0-indexed), para calcular offset do ciclo."""
+    """Número de semanas desde o início (0-indexed), para calcular offset do ciclo.
+    schedule_week_offset ajusta qual treino cai em qual dia da semana."""
     ref = ref or date.today()
     origin = _schedule_origin(state)
-    return max(0, (ref - origin).days // 7)
+    raw = max(0, (ref - origin).days // 7)
+    offset = int(state.get("schedule_week_offset", 0))
+    return (raw + offset) % 4
 
 
 def get_scheduled_workout(state: dict, d: date = None) -> str | None:

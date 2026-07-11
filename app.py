@@ -69,6 +69,7 @@ DEFAULT_STATE = {
     "running_base_km": 3.0,
     "use_e_next": False,
     "checkin": {},
+    "schedule_week_offset": 0,
 }
 
 # ── State persistence ──────────────────────────────────────────────────────────
