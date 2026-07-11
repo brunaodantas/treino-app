@@ -347,8 +347,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 state = st.session_state.app_state
 
 with tab1:
-    from views.dashboard import render_dashboard
-    render_dashboard(state, save_state)
+    try:
+        from views.dashboard import render_dashboard
+        render_dashboard(state, save_state)
+    except Exception as _dash_err:
+        import traceback
+        st.error(f"Erro no dashboard: {_dash_err}")
+        st.code(traceback.format_exc())
 
 with tab2:
     from views.cardapio import render_cardapio
