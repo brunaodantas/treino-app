@@ -1,4 +1,5 @@
 [
+  {"data": "2026-07-11", "hrv": 24.2, "fc_repouso": 71, "sono_horas": 7.3, "peso_kg": null, "ctl": 13.5, "atl": 47.0, "tsb": -33.5},
   {"data": "2026-07-10", "hrv": 26.9, "fc_repouso": 70, "sono_horas": 6.7, "peso_kg": null, "ctl": 8.5, "atl": 33.4, "tsb": -24.9},
   {"data": "2026-07-09", "hrv": 28.6, "fc_repouso": 63, "sono_horas": 9.2, "peso_kg": 92.0, "ctl": 7.0, "atl": 19.1, "tsb": -12.1},
   {"data": "2026-07-08", "hrv": 31.7, "fc_repouso": 68, "sono_horas": 6.2, "peso_kg": null, "ctl": 7.1, "atl": 22.0, "tsb": -14.9},
