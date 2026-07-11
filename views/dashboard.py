@@ -87,17 +87,20 @@ def render_dashboard(state: dict, save_fn):
         else:
             col.markdown(f"{slot['dia']} {date_str}  \n{short}")
 
-    # Ajuste de ciclo: qual treino começa na Terça desta semana
+    # Ajuste de ciclo: qual treino começa na próxima Terça
     from datetime import timedelta as _td
     _monday = today - _td(days=today.weekday())
-    _next_tue = _monday + _td(days=1)
-    _current_tue_wk = get_scheduled_workout(state, _next_tue) or get_scheduled_workout(state, _monday + _td(days=8))
+    _this_tue = _monday + _td(days=1)
+    # Se a Terça desta semana já passou, aponta para a próxima
+    _ref_tue = _this_tue if _this_tue >= today else _monday + _td(days=8)
+    _current_tue_wk = get_scheduled_workout(state, _ref_tue) or "A"
     _opcoes = ["A", "B", "C", "D"]
     _idx_atual = _opcoes.index(_current_tue_wk) if _current_tue_wk in _opcoes else 0
-    _escolha = st.selectbox("Terça desta semana começa com:", _opcoes, index=_idx_atual, key="ciclo_sel")
+    _label_tue = _ref_tue.strftime("%d/%m")
+    _escolha = st.selectbox(f"Terça {_label_tue} começa com:", _opcoes, index=_idx_atual, key="ciclo_sel")
     if _escolha != _current_tue_wk:
         from logic.schedule import get_cycle_week as _gcw, _schedule_origin as _so
-        _raw = max(0, (_next_tue - _so(state)).days // 7)
+        _raw = max(0, (_ref_tue - _so(state)).days // 7)
         _novo_offset = (_opcoes.index(_escolha) - _raw) % 4
         state["schedule_week_offset"] = _novo_offset
         save_fn(state)
