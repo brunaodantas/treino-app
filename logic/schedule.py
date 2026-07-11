@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from utils import now_br
 
 WORKOUT_SEQUENCE = ["A", "B", "C", "D"]
 
@@ -71,11 +72,14 @@ def check_72h_conflict(state: dict, workout: str):
     """Returns (has_conflict, message)."""
     groups = MUSCLE_GROUPS.get(workout, set())
     log = state.get("workout_log", [])
-    cutoff = datetime.now() - timedelta(hours=72)
+    now = now_br()
+    cutoff = now - timedelta(hours=72)
 
     for entry in log:
         try:
             ts = datetime.fromisoformat(entry["completed_at"])
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=now.tzinfo)
         except Exception:
             continue
         if ts < cutoff:
@@ -83,7 +87,7 @@ def check_72h_conflict(state: dict, workout: str):
         prev_groups = MUSCLE_GROUPS.get(entry["workout"], set())
         overlap = groups & prev_groups
         if overlap:
-            hours_ago = (datetime.now() - ts).total_seconds() / 3600
+            hours_ago = (now - ts).total_seconds() / 3600
             remaining = 72 - hours_ago
             return True, (
                 f"⚠️ Treino {entry['workout']} foi feito há {hours_ago:.0f}h. "
