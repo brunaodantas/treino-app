@@ -395,7 +395,12 @@ with tab6:
     render_saude()
 
 with tab7:
-    st.markdown("### ⚙️ Configurações")
+    col_cfg, col_ref7 = st.columns([5, 1])
+    with col_cfg:
+        st.markdown("### ⚙️ Configurações")
+    with col_ref7:
+        if st.button("🔄", help="Recarregar", key="refresh_cfg"):
+            _components.html("<script>window.parent.location.reload();</script>", height=0)
 
     st.subheader("💾 Backup")
     state_json = json.dumps(st.session_state.app_state, ensure_ascii=False, indent=2)

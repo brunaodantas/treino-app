@@ -128,7 +128,13 @@ def _merge_daily(gfit_data, health_data, intervals_data, d):
 
 
 def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=None):
-    st.markdown("### 💤 Recuperação")
+    col_title, col_ref = st.columns([5, 1])
+    with col_title:
+        st.markdown("### 💤 Recuperação")
+    with col_ref:
+        if st.button("🔄", help="Recarregar", key="refresh_rec"):
+            import streamlit.components.v1 as _cv1
+            _cv1.html("<script>window.parent.location.reload();</script>", height=0)
 
     today = today_br()
     fc, sono, passos, calorias, hrv, ctl, atl, tsb = _merge_daily(

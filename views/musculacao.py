@@ -346,7 +346,7 @@ def _render_picker(state: dict, save_fn):
                     f"**{letter}** — {WORKOUT_DESC[letter]}{warn}",
                     key=f"pick_{letter}",
                     use_container_width=True,
-                    type="secondary" if conflict else "primary",
+                    type="primary",
                 )
                 if btn:
                     _init_session(letter, state, save_fn)
