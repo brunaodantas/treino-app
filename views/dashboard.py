@@ -237,11 +237,6 @@ def render_dashboard(state: dict, save_fn):
 
     if today_workout:
         st.info(f"🏋️ **Hoje:** {WORKOUT_LABELS.get(today_workout, today_workout)}")
-    elif next_date and next_workout:
-        days_until = (next_date - today).days
-        day_label = DAY_NAMES.get(next_date.weekday(), next_date.strftime("%A"))
-        when = "amanhã" if days_until == 1 else f"em {days_until} dias"
-        st.info(f"📅 **Próximo:** {WORKOUT_LABELS.get(next_workout, next_workout)} — {day_label} {next_date.strftime('%d/%m')} ({when})")
 
     st.markdown("---")
 
