@@ -232,8 +232,8 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
         rec_color = "#F44336"
 
     st.markdown(
-        f"<div style='background:{rec_color}22;border-left:4px solid {rec_color};"
-        f"padding:12px 16px;border-radius:8px;font-size:1.1rem;font-weight:600'>"
+        f"<div style='background:{rec_color}18;border:1.5px solid {rec_color}50;"
+        f"padding:12px 16px;border-radius:10px;font-size:1.05rem;font-weight:600'>"
         f"{rec_label}</div>",
         unsafe_allow_html=True,
     )

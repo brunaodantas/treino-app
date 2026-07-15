@@ -107,8 +107,8 @@ def _render_estado_atual(log: list):
         return  # sem dados suficientes
 
     st.markdown(
-        f"<div style='background:{estado_cor}22;border-left:4px solid {estado_cor};"
-        f"padding:10px 14px;border-radius:8px;font-size:1rem;font-weight:600;margin-bottom:8px'>"
+        f"<div style='background:{estado_cor}18;border:1.5px solid {estado_cor}50;"
+        f"padding:10px 14px;border-radius:10px;font-size:1rem;font-weight:600;margin-bottom:8px'>"
         f"{estado_icon} Estado hoje: {estado_txt}</div>",
         unsafe_allow_html=True,
     )
