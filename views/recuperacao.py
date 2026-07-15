@@ -2,6 +2,80 @@ import streamlit as st
 from datetime import date, timedelta
 from utils import today_br
 
+_SURFACE = "rgba(0,0,0,0)"
+_GRID    = "rgba(255,255,255,0.07)"
+_INK     = "#9CA3AF"
+
+
+def _chart_layout(title, show_legend=False):
+    leg = dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0,
+               font=dict(size=11, color=_INK), bgcolor="rgba(0,0,0,0)") if show_legend else {}
+    return dict(
+        title=dict(text=title, font=dict(size=12, color=_INK), x=0, xanchor="left"),
+        paper_bgcolor=_SURFACE, plot_bgcolor=_SURFACE,
+        margin=dict(l=0, r=4, t=32, b=0), height=190,
+        showlegend=show_legend, legend=leg,
+        xaxis=dict(showgrid=False, zeroline=False,
+                   tickfont=dict(size=9, color=_INK), tickangle=-30, fixedrange=True),
+        yaxis=dict(showgrid=True, gridcolor=_GRID, zeroline=False,
+                   tickfont=dict(size=9, color=_INK), fixedrange=True),
+        hoverlabel=dict(bgcolor="#1E2130", font_size=12, font_color="#FAFAFA",
+                        bordercolor="rgba(255,255,255,0.1)"),
+    )
+
+
+def _render_trends(gfit_data, health_data, intervals_data):
+    from datetime import datetime, timezone, timedelta as _td
+    import plotly.graph_objects as go
+
+    _br = datetime.now(timezone(_td(hours=-3))).date()
+    dates, fcr_v, ctl_v, atl_v = [], [], [], []
+    for i in range(13, -1, -1):
+        d = str(_br - _td(days=i))
+        fc_d, _, _, _, _, ctl_d, atl_d, _ = _merge_daily(gfit_data, health_data, intervals_data, d)
+        dates.append(d[-5:])   # MM-DD
+        fcr_v.append(fc_d)
+        ctl_v.append(round(ctl_d, 1) if ctl_d is not None else None)
+        atl_v.append(round(atl_d, 1) if atl_d is not None else None)
+
+    _cfg = {"displayModeBar": False, "scrollZoom": False}
+
+    # ── FCR 14 dias ──────────────────────────────────────────────────────────
+    if any(v is not None for v in fcr_v):
+        fig = go.Figure()
+        fig.add_hrect(y0=0,  y1=65,  fillcolor="rgba(76,175,80,0.06)",  line_width=0)
+        fig.add_hrect(y0=72, y1=130, fillcolor="rgba(244,67,54,0.06)",  line_width=0)
+        fig.add_hline(y=65, line_dash="dot", line_color="rgba(76,175,80,0.4)",  line_width=1)
+        fig.add_hline(y=72, line_dash="dot", line_color="rgba(244,67,54,0.4)",  line_width=1)
+        fig.add_trace(go.Scatter(
+            x=dates, y=fcr_v, mode="lines+markers", name="FCR",
+            line=dict(color="#FF6B35", width=2),
+            marker=dict(size=5, color="#FF6B35", line=dict(color="#0E1117", width=1.5)),
+            connectgaps=True,
+            hovertemplate="<b>%{x}</b>  %{y} bpm<extra></extra>",
+        ))
+        fig.update_layout(**_chart_layout("FC Repouso — 14 dias"))
+        st.plotly_chart(fig, use_container_width=True, config=_cfg)
+
+    # ── CTL / ATL 14 dias ────────────────────────────────────────────────────
+    if any(v is not None for v in ctl_v):
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=dates, y=ctl_v, mode="lines", name="CTL — Forma",
+            line=dict(color="#4A90D9", width=2),
+            fill="tozeroy", fillcolor="rgba(74,144,217,0.10)",
+            connectgaps=True,
+            hovertemplate="<b>%{x}</b>  CTL %{y:.1f}<extra></extra>",
+        ))
+        fig2.add_trace(go.Scatter(
+            x=dates, y=atl_v, mode="lines", name="ATL — Fadiga",
+            line=dict(color="#E8A838", width=2),
+            connectgaps=True,
+            hovertemplate="<b>%{x}</b>  ATL %{y:.1f}<extra></extra>",
+        ))
+        fig2.update_layout(**_chart_layout("Carga — 14 dias", show_legend=True))
+        st.plotly_chart(fig2, use_container_width=True, config=_cfg)
+
 
 def _hr_status(fc):
     if fc is None:
@@ -210,6 +284,11 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
                       help="TSB > 0: descansado | TSB < -10: fadigado | TSB < -20: sobrecarga")
 
     st.markdown("---")
+
+    # Gráficos de tendência
+    if gfit_data or health_data or intervals_data:
+        _render_trends(gfit_data, health_data, intervals_data)
+        st.markdown("---")
 
     # Histórico 7 dias
     if gfit_data or health_data or intervals_data:
