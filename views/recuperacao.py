@@ -80,9 +80,9 @@ def _render_trends(gfit_data, health_data, intervals_data):
 def _hr_status(fc):
     if fc is None:
         return "⚪", "Sem dados"
-    if fc <= 60:
+    if fc <= 67:
         return "🟢", "Excelente"
-    if fc <= 70:
+    if fc <= 74:
         return "🟡", "Normal"
     return "🔴", "Elevada"
 
@@ -118,9 +118,9 @@ def _recovery_score(fc, sleep_h, hrv=None):
             score += 1
     if fc is not None:
         total += 1
-        if fc <= 60:
+        if fc <= 67:
             score += 1
-        elif fc <= 70:
+        elif fc <= 74:
             score += 0.5
     if sleep_h is not None:
         total += 1
