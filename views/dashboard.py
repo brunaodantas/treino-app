@@ -6,8 +6,7 @@ from pathlib import Path
 
 from logic.schedule import (
     get_next_workout, check_72h_conflict, mark_workout_done,
-    get_scheduled_workout, get_week_schedule, get_next_scheduled,
-    WORKOUT_LABELS, WORKOUT_SEQUENCE, DAY_NAMES,
+    get_scheduled_workout, WORKOUT_LABELS, WORKOUT_SEQUENCE,
 )
 from logic.running import (
     is_running_day, is_rest_day, is_optional_run_day, get_run_info,
@@ -200,41 +199,8 @@ def render_dashboard(state: dict, save_fn):
 
     st.markdown("---")
 
-    # ── Agenda semanal ─────────────────────────────────────────────────────────
-    week_sched = get_week_schedule(state)
+    # ── Treino de hoje ─────────────────────────────────────────────────────────
     today_workout = get_scheduled_workout(state)
-    next_date, next_workout = get_next_scheduled(state)
-
-    st.markdown("**Agenda desta semana:**")
-    cols = st.columns(3)
-    for col, slot in zip(cols, week_sched):
-        label = WORKOUT_LABELS.get(slot["treino"], slot["treino"])
-        short = f"Treino {slot['treino']}" if slot["treino"] else "—"
-        date_str = slot["data"].strftime("%d/%m")
-        if slot["hoje"]:
-            col.markdown(f"**🔵 {slot['dia']} {date_str}**  \n**{short}**")
-        else:
-            col.markdown(f"{slot['dia']} {date_str}  \n{short}")
-
-    # Ajuste de ciclo: qual treino começa na próxima Terça
-    from datetime import timedelta as _td
-    _monday = today - _td(days=today.weekday())
-    _this_tue = _monday + _td(days=1)
-    # Se a Terça desta semana já passou, aponta para a próxima
-    _ref_tue = _this_tue if _this_tue >= today else _monday + _td(days=8)
-    _current_tue_wk = get_scheduled_workout(state, _ref_tue) or "A"
-    _opcoes = ["A", "B", "C", "D"]
-    _idx_atual = _opcoes.index(_current_tue_wk) if _current_tue_wk in _opcoes else 0
-    _label_tue = _ref_tue.strftime("%d/%m")
-    _escolha = st.selectbox(f"Terça {_label_tue} começa com:", _opcoes, index=_idx_atual, key="ciclo_sel")
-    if _escolha != _current_tue_wk:
-        from logic.schedule import get_cycle_week as _gcw, _schedule_origin as _so
-        _raw = max(0, (_ref_tue - _so(state)).days // 7)
-        _novo_offset = (_opcoes.index(_escolha) - _raw) % 4
-        state["schedule_week_offset"] = _novo_offset
-        save_fn(state)
-        st.rerun()
-
     if today_workout:
         st.info(f"🏋️ **Hoje:** {WORKOUT_LABELS.get(today_workout, today_workout)}")
 
@@ -342,21 +308,32 @@ def render_dashboard(state: dict, save_fn):
 
 def _render_workout_log(state: dict):
     log = state.get("workout_log", [])
-    if not log:
-        return
-    st.markdown("#### Histórico recente")
-    cols = st.columns(4)
-    for col, h in zip(cols, ["Data", "Treino", "Horário", ""]):
-        col.markdown(f"**{h}**")
+    st.markdown("#### 📋 Histórico de treinos")
 
-    for entry in log[:8]:
-        c1, c2, c3, c4 = st.columns(4)
-        c1.write(entry.get("date", ""))
-        c2.write(WORKOUT_LABELS.get(entry.get("workout", ""), entry.get("workout", "")))
+    if not log:
+        st.caption("Nenhum treino registrado ainda.")
+        return
+
+    # Próximo na fila
+    last_workout = log[0].get("workout", "")
+    seq = WORKOUT_SEQUENCE
+    if last_workout in seq:
+        next_w = seq[(seq.index(last_workout) + 1) % len(seq)]
+        st.info(f"⏭️ **Próximo:** {WORKOUT_LABELS.get(next_w, next_w)}")
+
+    # Tabela de histórico
+    import pandas as pd
+    rows = []
+    for entry in log[:20]:
         ts = entry.get("completed_at", "")
         try:
             time_str = datetime.fromisoformat(ts).strftime("%H:%M")
         except Exception:
-            time_str = ts[:16]
-        c3.write(time_str)
-        c4.write("✅")
+            time_str = "—"
+        w = entry.get("workout", "")
+        rows.append({
+            "Data": entry.get("date", ""),
+            "Treino": WORKOUT_LABELS.get(w, w),
+            "Horário": time_str,
+        })
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
