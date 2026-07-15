@@ -228,8 +228,17 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
         rec_label = "🟡 Treine com moderação"
         rec_color = "#FFC107"
     else:
-        rec_label = "🔴 Priorize descanso hoje"
         rec_color = "#F44336"
+        _sono_baixo = sono is not None and sono < 6.5
+        _fcr_alta = fc is not None and fc > 74
+        if _sono_baixo and not _fcr_alta:
+            rec_label = "🔴 Durma mais esta noite — sono abaixo do ideal"
+        elif _fcr_alta and not _sono_baixo:
+            rec_label = "🔴 FCR elevada — reduza a intensidade hoje"
+        elif _fcr_alta and _sono_baixo:
+            rec_label = "🔴 Durma mais esta noite e treine leve hoje"
+        else:
+            rec_label = "🔴 Priorize descanso hoje"
 
     st.markdown(
         f"<div style='background:{rec_color}18;border:1.5px solid {rec_color}50;"
