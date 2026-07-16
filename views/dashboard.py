@@ -29,21 +29,13 @@ def _load_health_log() -> list:
         return []
 
 
-def _get_latest_hrv() -> float | None:
-    data = _load_health_log()
-    for entry in data:
-        if entry.get("hrv"):
-            return float(entry["hrv"])
-    return None
-
-
 def _avg(entries: list, key: str) -> float | None:
     vals = [e[key] for e in entries if e.get(key) is not None]
     return round(sum(vals) / len(vals), 1) if vals else None
 
 
 def _health_summary(log: list) -> dict:
-    """Retorna today + médias 3d/7d/15d para HRV, FC, sono, TSB, CTL, ATL."""
+    """Retorna today + médias 3d/7d/15d para FC, sono, TSB, CTL, ATL."""
     today_str = date.today().isoformat()
     today_entry = next((e for e in log if e.get("data") == today_str), None)
 
@@ -52,7 +44,6 @@ def _health_summary(log: list) -> dict:
     def stats(n):
         subset = past[:n]
         return {
-            "hrv": _avg(subset, "hrv"),
             "fc": _avg(subset, "fc_repouso"),
             "sono": _avg(subset, "sono_horas"),
             "tsb": _avg(subset, "tsb"),
@@ -81,25 +72,24 @@ def _render_estado_atual(log: list):
     s = _health_summary(log)
     today = s["today"]
 
-    hrv_hoje = today.get("hrv")
     fc_hoje = today.get("fc_repouso")
     sono_hoje = today.get("sono_horas")
     tsb_hoje = today.get("tsb")
     ctl_hoje = today.get("ctl")
     atl_hoje = today.get("atl")
 
-    # Ícone de estado geral
-    if hrv_hoje is not None:
-        if hrv_hoje >= 31:
-            estado_icon, estado_txt, estado_cor = "🟢", "Recuperado", "#4CAF50"
-        elif hrv_hoje >= 27:
-            estado_icon, estado_txt, estado_cor = "🟡", "Moderado", "#FFC107"
-        else:
-            estado_icon, estado_txt, estado_cor = "🔴", "Fadigado", "#F44336"
-    elif tsb_hoje is not None:
+    # Ícone de estado geral baseado em TSB e FCR
+    if tsb_hoje is not None:
         if tsb_hoje > -10:
             estado_icon, estado_txt, estado_cor = "🟢", "Recuperado", "#4CAF50"
         elif tsb_hoje > -20:
+            estado_icon, estado_txt, estado_cor = "🟡", "Moderado", "#FFC107"
+        else:
+            estado_icon, estado_txt, estado_cor = "🔴", "Fadigado", "#F44336"
+    elif fc_hoje is not None:
+        if fc_hoje <= 67:
+            estado_icon, estado_txt, estado_cor = "🟢", "Recuperado", "#4CAF50"
+        elif fc_hoje <= 74:
             estado_icon, estado_txt, estado_cor = "🟡", "Moderado", "#FFC107"
         else:
             estado_icon, estado_txt, estado_cor = "🔴", "Fadigado", "#F44336"
@@ -114,18 +104,15 @@ def _render_estado_atual(log: list):
     )
 
     # Métricas com delta vs 7d
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     with c1:
-        delta = _delta_str(hrv_hoje, s["d7"]["hrv"])
-        st.metric("HRV", f"{hrv_hoje:.0f}" if hrv_hoje else "—", delta)
-    with c2:
         delta = _delta_str(fc_hoje, s["d7"]["fc"])
         st.metric("FC rep.", f"{fc_hoje}" if fc_hoje else "—", delta,
                   delta_color="inverse")
-    with c3:
+    with c2:
         delta = _delta_str(sono_hoje, s["d7"]["sono"])
         st.metric("Sono", f"{sono_hoje:.1f}h" if sono_hoje else "—", delta)
-    with c4:
+    with c3:
         delta = _delta_str(tsb_hoje, s["d7"]["tsb"])
         st.metric("TSB", f"{tsb_hoje:+.1f}" if tsb_hoje is not None else "—", delta,
                   delta_color="inverse")
@@ -133,15 +120,11 @@ def _render_estado_atual(log: list):
     # Tabela 3d/7d/15d
     with st.expander("📊 Comparativo 3d / 7d / 15d"):
         rows = []
-        for label, key_d, key_fc, key_s, key_t in [
-            ("3 dias", "d3", "d3", "d3", "d3"),
-            ("7 dias", "d7", "d7", "d7", "d7"),
-            ("15 dias", "d15", "d15", "d15", "d15"),
-        ]:
-            d = s[key_d]
+        for label in ["3 dias", "7 dias", "15 dias"]:
+            key = "d" + label.split()[0]
+            d = s[key]
             rows.append({
                 "Período": f"Últimos {label}",
-                "HRV": f"{d['hrv']:.1f}" if d["hrv"] else "—",
                 "FC rep.": f"{d['fc']}" if d["fc"] else "—",
                 "Sono": f"{d['sono']:.1f}h" if d["sono"] else "—",
                 "TSB": f"{d['tsb']:+.1f}" if d["tsb"] is not None else "—",
@@ -166,7 +149,6 @@ def render_dashboard(state: dict, save_fn):
     st.markdown("---")
 
     _log = _load_health_log()
-    hrv = _get_latest_hrv()
 
     # ── Estado de recuperação ──────────────────────────────────────────────────
     _render_estado_atual(_log)
@@ -193,8 +175,7 @@ def render_dashboard(state: dict, save_fn):
             st.success("Check-in salvo!")
             st.rerun()
 
-        hrv_baixo = hrv is not None and hrv < 27
-        if hrv_baixo and sono < 6 and apetite < 4:
+        if sono < 6 and apetite < 4:
             st.warning("⚠️ Múltiplos indicadores de fadiga. Considere descanso ou treino leve hoje.")
 
     st.markdown("---")
@@ -218,23 +199,7 @@ def render_dashboard(state: dict, save_fn):
     if running and run_info:
         st.info(f"🏃 {run_info['descricao']} · **{distance:.1f} km**")
     elif optional_run and run_info:
-        hrv_ok = hrv is None or hrv >= 27
-        if hrv_ok:
-            hrv_str = f" — HRV {hrv:.1f}" if hrv else ""
-            st.info(f"🏃 {run_info['descricao']}{hrv_str}")
-        else:
-            st.warning(f"🚶 Corrida opcional cancelada — HRV {hrv:.1f} (< 27).")
-
-    # Alerta HRV na sexta (treino reduzido)
-    if weekday == 4 and hrv is not None and hrv < 27:
-        from logic.schedule import EXERCISES_C_REDUCED
-        st.warning(
-            f"⚠️ HRV {hrv:.1f} (< 27). Recomendação: treino reduzido de pernas — "
-            f"**Leg Press** + **Adução Quadril** apenas."
-        )
-        with st.expander("Ver treino reduzido"):
-            for ex in EXERCISES_C_REDUCED:
-                st.markdown(f"- **{ex['nome']}** — {ex['series']}×{ex['reps']} · {ex['peso_atual']} kg")
+        st.info(f"🏃 {run_info['descricao']}")
 
     st.markdown("---")
 

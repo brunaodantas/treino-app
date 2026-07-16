@@ -32,7 +32,7 @@ def _render_trends(gfit_data, health_data, intervals_data):
     dates, fcr_v, ctl_v, atl_v = [], [], [], []
     for i in range(13, -1, -1):
         d = str(_br - _td(days=i))
-        fc_d, _, _, _, _, ctl_d, atl_d, _ = _merge_daily(gfit_data, health_data, intervals_data, d)
+        fc_d, _, _, _, ctl_d, atl_d, _ = _merge_daily(gfit_data, health_data, intervals_data, d)
         dates.append(d[-5:])   # MM-DD
         fcr_v.append(fc_d)
         ctl_v.append(round(ctl_d, 1) if ctl_d is not None else None)
@@ -97,25 +97,9 @@ def _sleep_status(horas):
     return "🔴", "Insuficiente"
 
 
-def _hrv_status(hrv):
-    if hrv is None:
-        return "⚪", "Sem dados"
-    if hrv >= 31:
-        return "🟢", "Ótimo"
-    if hrv >= 27:
-        return "🟡", "Normal"
-    return "🔴", "Baixo"
-
-
-def _recovery_score(fc, sleep_h, hrv=None):
+def _recovery_score(fc, sleep_h):
     score = 0
     total = 0
-    if hrv is not None:
-        total += 2  # HRV tem peso maior
-        if hrv >= 31:
-            score += 2
-        elif hrv >= 27:
-            score += 1
     if fc is not None:
         total += 1
         if fc <= 67:
@@ -144,21 +128,21 @@ def _get_intervals_day(intervals_data, d):
 
 def _merge_daily(gfit_data, health_data, intervals_data, d):
     """
-    Retorna (fc, sono, passos, calorias, hrv, ctl, atl, tsb) para a data d.
+    Retorna (fc, sono, passos, calorias, ctl, atl, tsb) para a data d.
     Prioridade: Intervals > Google Fit > Apple Health.
     """
-    fc = sono = passos = calorias = hrv = ctl = atl = tsb = None
+    fc = sono = passos = calorias = ctl = atl = tsb = None
 
     # Intervals (prioridade máxima)
     iv = _get_intervals_day(intervals_data, d)
     if iv:
         fc = iv.get("fc_repouso")
-        hrv = iv.get("hrv")
         ctl = iv.get("ctl")
         atl = iv.get("atl")
         tsb = iv.get("tsb")
         if iv.get("sono_horas"):
             sono = iv["sono_horas"]
+
 
     yesterday = str(date.fromisoformat(d) - timedelta(days=1))
 
@@ -198,7 +182,7 @@ def _merge_daily(gfit_data, health_data, intervals_data, d):
             if c:
                 calorias = int(c)
 
-    return fc, sono, passos, calorias, hrv, ctl, atl, tsb
+    return fc, sono, passos, calorias, ctl, atl, tsb
 
 
 def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=None):
@@ -211,12 +195,12 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
             _cv1.html("<script>window.parent.location.reload();</script>", height=0)
 
     today = today_br()
-    fc, sono, passos, calorias, hrv, ctl, atl, tsb = _merge_daily(
+    fc, sono, passos, calorias, ctl, atl, tsb = _merge_daily(
         gfit_data, health_data, intervals_data, today
     )
 
     # Score de recuperação
-    score = _recovery_score(fc, sono, hrv)
+    score = _recovery_score(fc, sono)
 
     if score is None:
         rec_label = "⚪ Conecte o Google Fit ou Intervals para ver recuperação"
@@ -250,28 +234,23 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
     st.markdown("")
 
     # Métricas principais
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        icon, label = _hrv_status(hrv)
-        st.metric("HRV", f"{hrv:.0f}" if hrv else "—", label)
-        st.markdown(icon)
-
-    with col2:
         icon, label = _hr_status(fc)
         st.metric("FC Repouso", f"{fc} bpm" if fc else "—", label)
         st.markdown(icon)
 
-    with col3:
+    with col2:
         icon, label = _sleep_status(sono)
         st.metric("Sono", f"{sono}h" if sono else "—", label)
         st.markdown(icon)
 
-    with col4:
+    with col3:
         p_str = f"{passos:,}".replace(",", ".") if passos else "—"
         st.metric("Passos", p_str)
 
-    with col5:
+    with col4:
         st.metric("Calorias", f"{calorias} kcal" if calorias else "—")
 
     # Carga de treino (Intervals)
@@ -307,12 +286,11 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
         _br = datetime.now(timezone(_td(hours=-3))).date()
         for i in range(7):
             d = str(_br - timedelta(days=i))
-            fc_d, sono_d, passos_d, cals_d, hrv_d, *_ = _merge_daily(
+            fc_d, sono_d, passos_d, cals_d, *_ = _merge_daily(
                 gfit_data, health_data, intervals_data, d
             )
             rows.append({
                 "Data": d,
-                "HRV": f"{hrv_d:.0f}" if hrv_d else "—",
                 "FC Repouso": f"{fc_d} bpm" if fc_d else "—",
                 "Sono": f"{sono_d}h" if sono_d else "—",
                 "Passos": f"{passos_d:,}".replace(",", ".") if passos_d else "—",
