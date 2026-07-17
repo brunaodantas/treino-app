@@ -355,10 +355,27 @@ def _render_picker(state: dict, save_fn):
     history = state.get("workout_history", [])
     if history:
         st.markdown("---")
-        st.markdown("#### Últimos treinos")
-        for s in history[:6]:
+        st.markdown("#### Histórico")
+        import pandas as pd
+        from datetime import datetime
+        rows = []
+        for s in history[:15]:
+            try:
+                dt = datetime.fromisoformat(s["completed_at"])
+                data_fmt = dt.strftime("%d/%m")
+                hora_fmt = dt.strftime("%H:%M")
+            except Exception:
+                data_fmt = s.get("date", "")
+                hora_fmt = "—"
+            w = s.get("workout", "")
             vol = s.get("volume_total", 0)
-            st.markdown(f"**{s['workout']}** — {s['date']} — {vol:,.0f} kg volume")
+            rows.append({
+                "Data": data_fmt,
+                "Hora": hora_fmt,
+                "Treino": f"{w} — {WORKOUT_DESC.get(w, '')}",
+                "Volume": f"{vol:,.0f} kg".replace(",", "."),
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
 # ── Sessão ativa ───────────────────────────────────────────────────────────────
