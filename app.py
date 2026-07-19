@@ -348,11 +348,10 @@ if "code" in _params and _params.get("state", "") == "googlefit" and not st.sess
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📈 Saúde",
     "🏋️ Musculação",
     "🏃 Corrida",
-    "🥗 Cardápio",
     "⚙️",
 ])
 
@@ -388,10 +387,6 @@ with tab3:
     _safe_render("Corrida", lambda: render_corrida(state, st.session_state.strava_df, st.session_state.health_data))
 
 with tab4:
-    from views.cardapio import render_cardapio
-    _safe_render("Cardápio", lambda: render_cardapio(state, save_state))
-
-with tab5:
     col_cfg, col_ref7 = st.columns([5, 1])
     with col_cfg:
         st.markdown("### ⚙️ Configurações")

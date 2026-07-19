@@ -24,6 +24,18 @@ def _load_log() -> pd.DataFrame:
     return df
 
 
+def _latest_data_date() -> str | None:
+    """Data (YYYY-MM-DD) do registro mais recente com FC ou carga no health_log."""
+    df = _load_log()
+    if df.empty:
+        return None
+    mask = df["fc_repouso"].notna() | df["ctl"].notna()
+    valid = df[mask]
+    if valid.empty:
+        return None
+    return valid["data"].max().strftime("%Y-%m-%d")
+
+
 def _chart_carga(df: pd.DataFrame):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["data"], y=df["ctl"], name="CTL (forma)",
@@ -128,9 +140,19 @@ def render_saude(state: dict = None, save_fn=None,
             _components.html("<script>window.parent.location.reload();</script>", height=0)
 
     today = today_br()
+    ref_date = today
     fc, sono, passos, calorias, ctl, atl, tsb = _merge_daily(
         gfit_data, health_data, intervals_data, today
     )
+    # Se ainda não há dado de hoje (rotina das 9h ainda não rodou), usa o
+    # registro mais recente para a aba não ficar vazia de madrugada.
+    if fc is None and sono is None and ctl is None:
+        _recent = _latest_data_date()
+        if _recent and _recent != today:
+            ref_date = _recent
+            fc, sono, passos, calorias, ctl, atl, tsb = _merge_daily(
+                gfit_data, health_data, intervals_data, _recent
+            )
 
     # ── Recomendação de recuperação ─────────────────────────────────────────────
     score = _recovery_score(fc, sono)
@@ -165,8 +187,14 @@ def render_saude(state: dict = None, save_fn=None,
     # ── Check-in de hoje ────────────────────────────────────────────────────────
     _render_checkin(state, save_fn)
 
-    # ── Métricas de hoje ────────────────────────────────────────────────────────
-    st.markdown("#### Hoje")
+    # ── Métricas de hoje (ou do último registro) ────────────────────────────────
+    if ref_date == today:
+        st.markdown("#### Hoje")
+    else:
+        from datetime import date as _date
+        _fmt = _date.fromisoformat(ref_date).strftime("%d/%m")
+        st.markdown(f"#### Último registro — {_fmt}")
+        st.caption("Ainda sem dados de hoje. A rotina das 9h preenche automaticamente.")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         icon, label = _hr_status(fc)
