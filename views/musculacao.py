@@ -392,11 +392,9 @@ def _render_picker(state: dict, save_fn):
         cols = st.columns(len(row))
         for col, letter in zip(cols, row):
             with col:
-                conflict, _ = check_72h_conflict(state, letter)
-                warn = "  ⚠️" if conflict else ""
                 is_today = (letter == today_workout)
                 btn = st.button(
-                    f"**{letter}** — {WORKOUT_DESC[letter]}{warn}",
+                    f"**{letter}** — {WORKOUT_DESC[letter]}",
                     key=f"pick_{letter}",
                     use_container_width=True,
                     type="primary" if (is_today or not today_workout) else "secondary",
@@ -404,27 +402,6 @@ def _render_picker(state: dict, save_fn):
                 if btn:
                     _init_session(letter, state, save_fn)
                     st.rerun()
-
-    # ── Treino E (curinga) ──────────────────────────────────────────────────────
-    e_conflict, e_msg = check_72h_conflict(state, "E")
-    if state.get("use_e_next"):
-        if st.button("❌ Cancelar Treino E (curinga)", use_container_width=True):
-            state["use_e_next"] = False
-            save_fn(state)
-            st.rerun()
-    else:
-        if st.button("⚡ Marcar Treino E como próximo (curinga)",
-                     disabled=e_conflict, use_container_width=True):
-            state["use_e_next"] = True
-            save_fn(state)
-            st.rerun()
-        if e_conflict:
-            st.caption(e_msg)
-
-    # ── Próximo sugerido ────────────────────────────────────────────────────────
-    prox = get_next_workout(state)
-    if prox:
-        st.caption(f"⏭️ Próximo sugerido: {WORKOUT_LABELS.get(prox, prox)}")
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
     with st.expander("✅ Registrar treino já feito (sem detalhar séries)"):
