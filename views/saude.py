@@ -220,9 +220,10 @@ def render_saude(state: dict = None, save_fn=None,
     fc, sono, passos, calorias, ctl, atl, tsb = _merge_daily(
         gfit_data, health_data, intervals_data, today
     )
-    # Se ainda não há dado de hoje (rotina das 9h ainda não rodou), usa o
-    # registro mais recente para a aba não ficar vazia de madrugada.
-    if fc is None and sono is None and ctl is None:
+    # Se faltam os dados de recuperação de hoje (FC e sono) — comum de manhã, ou
+    # quando o Intervals já tem a carga do dia mas o wellness ainda não sincronizou —
+    # cai para o registro mais recente que os tenha, em vez de fingir "desconectado".
+    if fc is None and sono is None:
         _recent = _latest_data_date()
         if _recent and _recent != today:
             ref_date = _recent
