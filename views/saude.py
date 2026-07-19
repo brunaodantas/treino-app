@@ -36,6 +36,82 @@ def _latest_data_date() -> str | None:
     return valid["data"].max().strftime("%Y-%m-%d")
 
 
+# ── Cartão de estado compacto ───────────────────────────────────────────────────
+_ICON_COLOR = {"🟢": "#4CAF50", "🟡": "#FFC107", "🔴": "#F44336", "⚪": "#6B7280"}
+
+
+def _tsb_status(tsb):
+    if tsb is None:
+        return "#6B7280", "—"
+    if tsb > -10:
+        return "#4CAF50", "Descansado"
+    if tsb > -20:
+        return "#FFC107", "Moderado"
+    return "#F44336", "Fadigado"
+
+
+def _tile(label, value, unit="", status_color=None, status_text="", sub=""):
+    """Um bloco compacto: rótulo pequeno, valor, e um sinal de status (ou sublegenda)."""
+    unit_html = (f"<span style='font-size:.8rem;color:#9CA3AF;font-weight:500'> {unit}</span>"
+                 if unit else "")
+    if status_color and status_text:
+        dot = (f"<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+               f"background:{status_color};margin-right:5px;vertical-align:middle'></span>")
+        foot = (f"<div style='font-size:.72rem;color:{status_color};margin-top:3px'>"
+                f"{dot}{status_text}</div>")
+    elif sub:
+        foot = f"<div style='font-size:.72rem;color:#9CA3AF;margin-top:3px'>{sub}</div>"
+    else:
+        foot = "<div style='height:3px'></div>"
+    return (
+        "<div style='flex:1 1 96px;min-width:96px;background:#161A23;"
+        "border:1px solid #262B36;border-radius:12px;padding:10px 12px'>"
+        f"<div style='color:#9CA3AF;font-size:.68rem;letter-spacing:.4px;"
+        f"text-transform:uppercase;margin-bottom:3px'>{label}</div>"
+        f"<div style='color:#FAFAFA;font-size:1.45rem;font-weight:700;line-height:1.05'>"
+        f"{value}{unit_html}</div>"
+        f"{foot}</div>"
+    )
+
+
+def _render_state_card(ref_date, today, fc, sono, tsb, ctl, atl, passos, calorias):
+    # Cabeçalho honesto: "Hoje" só quando o dado é de hoje.
+    if ref_date == today:
+        st.markdown("#### Estado de hoje")
+    else:
+        from datetime import date as _date
+        _fmt = _date.fromisoformat(ref_date).strftime("%d/%m")
+        st.markdown(f"#### Estado — último registro ({_fmt})")
+        st.caption("Ainda sem dados de hoje. A rotina das 9h preenche automaticamente.")
+
+    tiles = []
+    # Primárias (com sinal de status)
+    fc_icon, fc_lbl = _hr_status(fc)
+    tiles.append(_tile("FC Repouso", fc if fc else "—", "bpm" if fc else "",
+                       _ICON_COLOR.get(fc_icon), fc_lbl))
+    sono_icon, sono_lbl = _sleep_status(sono)
+    tiles.append(_tile("Sono", f"{sono}" if sono else "—", "h" if sono else "",
+                       _ICON_COLOR.get(sono_icon), sono_lbl))
+    tsb_c, tsb_lbl = _tsb_status(tsb)
+    tiles.append(_tile("Frescor (TSB)", f"{tsb:+.1f}" if tsb is not None else "—", "",
+                       tsb_c, tsb_lbl))
+    # Carga (neutras)
+    if ctl is not None:
+        tiles.append(_tile("Forma", f"{ctl:.1f}", "", sub="CTL · 42 dias"))
+    if atl is not None:
+        tiles.append(_tile("Fadiga", f"{atl:.1f}", "", sub="ATL · 7 dias"))
+    # Atividade (só quando há dado, pra não deixar buraco)
+    if passos:
+        tiles.append(_tile("Passos", f"{passos:,}".replace(",", "."), "", sub="hoje"))
+    if calorias:
+        tiles.append(_tile("Calorias", f"{calorias}", "kcal", sub="hoje"))
+
+    st.markdown(
+        "<div style='display:flex;flex-wrap:wrap;gap:8px'>" + "".join(tiles) + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _chart_carga(df: pd.DataFrame):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["data"], y=df["ctl"], name="CTL (forma)",
@@ -155,14 +231,16 @@ def render_saude(state: dict = None, save_fn=None,
             )
 
     # ── Recomendação de recuperação ─────────────────────────────────────────────
+    from datetime import date as _date
+    quando = "hoje" if ref_date == today else f"(base {_date.fromisoformat(ref_date).strftime('%d/%m')})"
     score = _recovery_score(fc, sono)
     if score is None:
         rec_label = "⚪ Conecte o Google Fit ou o Intervals para avaliar a recuperação"
         rec_color = "#888"
     elif score >= 0.8:
-        rec_label, rec_color = "🟢 Bom para treinar hoje", "#4CAF50"
+        rec_label, rec_color = f"🟢 Bom para treinar {quando}", "#4CAF50"
     elif score >= 0.5:
-        rec_label, rec_color = "🟡 Treine com moderação", "#FFC107"
+        rec_label, rec_color = f"🟡 Treine com moderação {quando}", "#FFC107"
     else:
         rec_color = "#F44336"
         _sono_baixo = sono is not None and sono < 6.5
@@ -170,11 +248,11 @@ def render_saude(state: dict = None, save_fn=None,
         if _sono_baixo and not _fcr_alta:
             rec_label = "🛌 Durma mais esta noite"
         elif _fcr_alta and not _sono_baixo:
-            rec_label = "🔴 Pegue leve hoje — FC de repouso elevada"
+            rec_label = f"🔴 Pegue leve {quando} — FC de repouso elevada"
         elif _fcr_alta and _sono_baixo:
-            rec_label = "🛌 Durma mais — e pegue leve hoje"
+            rec_label = f"🛌 Durma mais — e pegue leve {quando}"
         else:
-            rec_label = "🔴 Pegue leve hoje"
+            rec_label = f"🔴 Pegue leve {quando}"
 
     st.markdown(
         f"<div style='background:{rec_color}18;border:1.5px solid {rec_color}50;"
@@ -187,45 +265,8 @@ def render_saude(state: dict = None, save_fn=None,
     # ── Check-in de hoje ────────────────────────────────────────────────────────
     _render_checkin(state, save_fn)
 
-    # ── Métricas de hoje (ou do último registro) ────────────────────────────────
-    if ref_date == today:
-        st.markdown("#### Hoje")
-    else:
-        from datetime import date as _date
-        _fmt = _date.fromisoformat(ref_date).strftime("%d/%m")
-        st.markdown(f"#### Último registro — {_fmt}")
-        st.caption("Ainda sem dados de hoje. A rotina das 9h preenche automaticamente.")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        icon, label = _hr_status(fc)
-        st.metric("FC Repouso", f"{fc} bpm" if fc else "—", label)
-        st.markdown(icon)
-    with c2:
-        icon, label = _sleep_status(sono)
-        st.metric("Sono", f"{sono}h" if sono else "—", label)
-        st.markdown(icon)
-    with c3:
-        p_str = f"{passos:,}".replace(",", ".") if passos else "—"
-        st.metric("Passos", p_str)
-    with c4:
-        st.metric("Calorias", f"{calorias} kcal" if calorias else "—")
-
-    # ── Carga de treino (Intervals) ─────────────────────────────────────────────
-    if ctl is not None or atl is not None:
-        st.markdown("#### 📊 Carga de treino")
-        cc1, cc2, cc3 = st.columns(3)
-        with cc1:
-            st.metric("Forma (CTL)", f"{ctl:.1f}" if ctl else "—",
-                      help="Fitness acumulado nos últimos 42 dias")
-        with cc2:
-            st.metric("Fadiga (ATL)", f"{atl:.1f}" if atl else "—",
-                      help="Fadiga dos últimos 7 dias")
-        with cc3:
-            tsb_val = round(tsb, 1) if tsb is not None else None
-            tsb_color = "normal" if tsb_val is None else ("inverse" if tsb_val < -20 else "normal")
-            st.metric("Frescor (TSB)", f"{tsb_val:+.1f}" if tsb_val is not None else "—",
-                      delta_color=tsb_color,
-                      help="TSB > 0: descansado | TSB < -10: fadigado | TSB < -20: sobrecarga")
+    # ── Cartão de estado (hoje ou último registro) ──────────────────────────────
+    _render_state_card(ref_date, today, fc, sono, tsb, ctl, atl, passos, calorias)
 
     # ── Tendências 14 dias ──────────────────────────────────────────────────────
     if gfit_data or health_data or intervals_data:
