@@ -419,30 +419,58 @@ def _render_picker(state: dict, save_fn):
             st.success(f"Treino {quick} registrado!")
             st.rerun()
 
-    history = state.get("workout_history", [])
-    if history:
-        st.markdown("---")
-        st.markdown("#### Histórico")
-        import pandas as pd
-        from datetime import datetime
-        rows = []
-        for s in history[:15]:
+    st.markdown("---")
+    st.subheader("📋 Últimos Treinos de Musculação")
+    _render_weight_history(state)
+
+
+def _render_weight_history(state: dict):
+    import pandas as pd
+    from datetime import datetime
+    from parsers.strava import get_weight_training
+
+    rows = []
+
+    # Strava (fonte principal — histórico completo)
+    strava_df = st.session_state.get("strava_df")
+    wt = get_weight_training(strava_df)
+    if not wt.empty:
+        for _, r in wt.head(30).iterrows():
+            data = r.get("data")
+            data_fmt = data.strftime("%d/%m/%Y") if hasattr(data, "strftime") else str(data)[:10]
+            nome = str(r.get("nome", "")).strip() or "Musculação"
+            dur = r.get("duracao_min")
+            fc = r.get("fc_media")
+            rows.append({
+                "Data": data_fmt,
+                "Treino": nome,
+                "Duração": f"{int(dur)} min" if pd.notna(dur) and dur > 0 else "—",
+                "FC Média": f"{int(fc)} bpm" if pd.notna(fc) and fc > 0 else "—",
+            })
+
+    # Fallback: histórico interno do app
+    if not rows:
+        for s in state.get("workout_history", [])[:20]:
             try:
                 dt = datetime.fromisoformat(s["completed_at"])
-                data_fmt = dt.strftime("%d/%m")
-                hora_fmt = dt.strftime("%H:%M")
+                data_fmt = dt.strftime("%d/%m/%Y")
+                hora = dt.strftime("%H:%M")
             except Exception:
                 data_fmt = s.get("date", "")
-                hora_fmt = "—"
+                hora = "—"
             w = s.get("workout", "")
             vol = s.get("volume_total", 0)
             rows.append({
                 "Data": data_fmt,
-                "Hora": hora_fmt,
                 "Treino": f"{w} — {WORKOUT_DESC.get(w, '')}",
-                "Volume": f"{vol:,.0f} kg".replace(",", "."),
+                "Duração": hora,
+                "FC Média": f"{vol:,.0f} kg vol.".replace(",", "."),
             })
+
+    if rows:
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("Faça upload do CSV do Strava na sidebar para ver seu histórico de musculação.")
 
 
 # ── Sessão ativa ───────────────────────────────────────────────────────────────

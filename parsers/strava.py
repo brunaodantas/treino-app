@@ -97,6 +97,18 @@ def _to_float(series: pd.Series) -> pd.Series:
     )
 
 
+def get_weight_training(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or "tipo" not in df.columns:
+        return pd.DataFrame()
+    mask = df["tipo"].str.contains("Treinamento com peso|Weight.?Training|Muscula", case=False, na=False)
+    wt = df[mask].copy()
+    if "tempo_decorrido" in wt.columns:
+        wt["duracao_min"] = pd.to_numeric(wt["tempo_decorrido"], errors="coerce") / 60
+    if "fc_media" in wt.columns:
+        wt["fc_media"] = _to_float(wt["fc_media"])
+    return wt
+
+
 def get_runs(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or "tipo" not in df.columns:
         return pd.DataFrame()
