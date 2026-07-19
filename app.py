@@ -202,6 +202,7 @@ if "strava_df" not in st.session_state:
 
     _api_records = []
     _s = st.session_state.app_state
+    _strava_status = None
     if _s.get("strava_tokens"):
         try:
             from parsers.strava_api import get_valid_token, fetch_recent_activities
@@ -223,8 +224,13 @@ if "strava_df" not in st.session_state:
                         "fc_max":       a.get("max_heartrate"),
                         "strava_id":    a.get("id"),
                     })
-        except Exception:
-            pass
+                _last_s = max((r["data"] for r in _api_records if r.get("data")), default=None)
+                _strava_status = {"ok": True, "count": len(_api_records), "last": _last_s}
+            else:
+                _strava_status = {"ok": False, "error": "token expirado — reconecte o Strava"}
+        except Exception as _e:
+            _strava_status = {"ok": False, "error": f"falha ao acessar o Strava ({type(_e).__name__})"}
+    st.session_state._strava_status = _strava_status
 
     if _api_records:
         _api_ids = {r["strava_id"] for r in _api_records if r.get("strava_id")}
@@ -270,29 +276,45 @@ if "hevy_df" not in st.session_state:
 # ── Google Fit data (carrega se conectado) ─────────────────────────────────────
 if "gfit_data" not in st.session_state:
     _s = st.session_state.app_state
+    _gfit_status = None
     if _s.get("gfit_tokens"):
         try:
             from parsers.google_fit import get_valid_token as gfit_token, fetch_all
             _tok = gfit_token(_s, save_state)
             if _tok:
-                st.session_state.gfit_data = fetch_all(_tok, days=7)
+                _gd = fetch_all(_tok, days=7)
+                st.session_state.gfit_data = _gd
+                _days = len({e["data"] for k in ("resting_hr", "steps", "sleep", "calories")
+                             for e in _gd.get(k, []) if e.get("data")})
+                _gfit_status = {"ok": True, "count": _days}
             else:
                 st.session_state.gfit_data = None
-        except Exception:
+                _gfit_status = {"ok": False, "error": "token expirado — reconecte o Google Fit"}
+        except Exception as _e:
             st.session_state.gfit_data = None
+            _gfit_status = {"ok": False, "error": f"falha ao acessar o Google Fit ({type(_e).__name__})"}
     else:
         st.session_state.gfit_data = None
+    st.session_state._gfit_status = _gfit_status
 
 # ── Intervals.icu data ─────────────────────────────────────────────────────────
 if "intervals_data" not in st.session_state:
+    _iv_status = None
     try:
         from parsers.intervals import is_configured, fetch_wellness
         if is_configured():
-            st.session_state.intervals_data = fetch_wellness(days=14)
+            _wd = fetch_wellness(days=14)
+            st.session_state.intervals_data = _wd
+            if _wd:
+                _iv_status = {"ok": True, "count": len(_wd), "last": _wd[0].get("data")}
+            else:
+                _iv_status = {"ok": False, "error": "conectado, mas a API não retornou dados"}
         else:
             st.session_state.intervals_data = None
-    except Exception:
+    except Exception as _e:
         st.session_state.intervals_data = None
+        _iv_status = {"ok": False, "error": f"falha ao acessar o Intervals ({type(_e).__name__})"}
+    st.session_state._iv_status = _iv_status
 
 # Fallback: health_log.json local (mesma estrutura que intervals_data)
 if "health_log_data" not in st.session_state:
@@ -398,6 +420,18 @@ def _safe_render(nome, fn):
         st.code(traceback.format_exc())
 
 
+def _render_sync_status(status, unit="registros"):
+    """Mostra o resultado real da última sincronização (contagem/data ou erro)."""
+    if not status:
+        return
+    if status.get("ok"):
+        last = status.get("last")
+        extra = f" · mais recente {last[8:10]}/{last[5:7]}" if last and len(last) >= 10 else ""
+        st.caption(f"✅ Última sync: {status.get('count', 0)} {unit}{extra}")
+    else:
+        st.warning(f"⚠️ {status.get('error', 'falha ao sincronizar')}")
+
+
 with tab1:
     from views.saude import render_saude
     _safe_render("Saúde", lambda: render_saude(
@@ -473,15 +507,14 @@ try {{
             col_sync_s, col_disc_s = st.columns(2)
             with col_sync_s:
                 if st.button("🔄 Sincronizar Strava", use_container_width=True):
-                    with st.spinner("Buscando atividades..."):
-                        st.session_state.pop("strava_df", None)
-                    st.toast("✅ Strava sincronizado!", icon="🏃")
+                    st.session_state.pop("strava_df", None)
                     st.rerun()
             with col_disc_s:
                 if st.button("Desconectar Strava", use_container_width=True):
                     _s.pop("strava_tokens", None)
                     save_state(_s)
                     st.rerun()
+            _render_sync_status(st.session_state.get("_strava_status"), "atividades")
         else:
             st.link_button("🔗 Conectar Strava", get_auth_url(), use_container_width=True)
 
@@ -512,6 +545,7 @@ try {{
 }} catch(e) {{ window.parent.location.reload(); }}
 </script>
 """, height=0)
+        _render_sync_status(st.session_state.get("_gfit_status"), "dias")
     elif gfit_client_id():
         st.link_button("🔗 Conectar Google Fit", gfit_auth_url(), use_container_width=True)
     else:
@@ -537,6 +571,7 @@ try {{
                 st.session_state.intervals_data = None
                 save_state(_s)
                 st.rerun()
+        _render_sync_status(st.session_state.get("_iv_status"), "dias")
     else:
         st.markdown("Entre com suas credenciais do Intervals.icu:")
         with st.form("intervals_form"):
