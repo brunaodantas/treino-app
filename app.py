@@ -358,27 +358,38 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 state = st.session_state.app_state
 
+
+def _safe_render(nome, fn):
+    """Renderiza uma aba; se falhar, mostra o traceback em vez de derrubar o app."""
+    try:
+        fn()
+    except Exception as _err:
+        import traceback
+        st.error(f"Erro na aba {nome}: {_err}")
+        st.code(traceback.format_exc())
+
+
 with tab1:
     from views.saude import render_saude
-    render_saude(
+    _safe_render("Saúde", lambda: render_saude(
         state,
         save_state,
         st.session_state.gfit_data,
         st.session_state.health_data,
         st.session_state.intervals_data or st.session_state.get("health_log_data"),
-    )
+    ))
 
 with tab2:
     from views.musculacao import render_musculacao
-    render_musculacao(state, st.session_state.hevy_df, save_state)
+    _safe_render("Musculação", lambda: render_musculacao(state, st.session_state.hevy_df, save_state))
 
 with tab3:
     from views.corrida import render_corrida
-    render_corrida(state, st.session_state.strava_df, st.session_state.health_data)
+    _safe_render("Corrida", lambda: render_corrida(state, st.session_state.strava_df, st.session_state.health_data))
 
 with tab4:
     from views.cardapio import render_cardapio
-    render_cardapio(state, save_state)
+    _safe_render("Cardápio", lambda: render_cardapio(state, save_state))
 
 with tab5:
     col_cfg, col_ref7 = st.columns([5, 1])
