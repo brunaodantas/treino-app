@@ -348,53 +348,39 @@ if "code" in _params and _params.get("state", "") == "googlefit" and not st.sess
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 Dashboard",
-    "🥗 Cardápio",
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈 Saúde",
     "🏋️ Musculação",
     "🏃 Corrida",
-    "💤 Recuperação",
-    "📈 Saúde",
+    "🥗 Cardápio",
     "⚙️",
 ])
 
 state = st.session_state.app_state
 
 with tab1:
-    try:
-        from views.dashboard import render_dashboard
-        render_dashboard(state, save_state)
-    except Exception as _dash_err:
-        import traceback
-        st.error(f"Erro no dashboard: {_dash_err}")
-        st.code(traceback.format_exc())
-
-with tab2:
-    from views.cardapio import render_cardapio
-    render_cardapio(state, save_state)
-
-with tab3:
-    from views.musculacao import render_musculacao
-    render_musculacao(state, st.session_state.hevy_df, save_state)
-
-with tab4:
-    from views.corrida import render_corrida
-    render_corrida(state, st.session_state.strava_df, st.session_state.health_data)
-
-with tab5:
-    from views.recuperacao import render_recuperacao
-    render_recuperacao(
+    from views.saude import render_saude
+    render_saude(
         state,
+        save_state,
         st.session_state.gfit_data,
         st.session_state.health_data,
         st.session_state.intervals_data or st.session_state.get("health_log_data"),
     )
 
-with tab6:
-    from views.saude import render_saude
-    render_saude()
+with tab2:
+    from views.musculacao import render_musculacao
+    render_musculacao(state, st.session_state.hevy_df, save_state)
 
-with tab7:
+with tab3:
+    from views.corrida import render_corrida
+    render_corrida(state, st.session_state.strava_df, st.session_state.health_data)
+
+with tab4:
+    from views.cardapio import render_cardapio
+    render_cardapio(state, save_state)
+
+with tab5:
     col_cfg, col_ref7 = st.columns([5, 1])
     with col_cfg:
         st.markdown("### ⚙️ Configurações")

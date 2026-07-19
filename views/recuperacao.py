@@ -43,10 +43,10 @@ def _render_trends(gfit_data, health_data, intervals_data):
     # ── FCR 14 dias ──────────────────────────────────────────────────────────
     if any(v is not None for v in fcr_v):
         fig = go.Figure()
-        fig.add_hrect(y0=0,  y1=65,  fillcolor="rgba(76,175,80,0.06)",  line_width=0)
-        fig.add_hrect(y0=72, y1=130, fillcolor="rgba(244,67,54,0.06)",  line_width=0)
-        fig.add_hline(y=65, line_dash="dot", line_color="rgba(76,175,80,0.4)",  line_width=1)
-        fig.add_hline(y=72, line_dash="dot", line_color="rgba(244,67,54,0.4)",  line_width=1)
+        fig.add_hrect(y0=0,  y1=78,  fillcolor="rgba(76,175,80,0.06)",  line_width=0)
+        fig.add_hrect(y0=80, y1=130, fillcolor="rgba(244,67,54,0.06)",  line_width=0)
+        fig.add_hline(y=78, line_dash="dot", line_color="rgba(76,175,80,0.4)",  line_width=1)
+        fig.add_hline(y=80, line_dash="dot", line_color="rgba(244,67,54,0.4)",  line_width=1)
         fig.add_trace(go.Scatter(
             x=dates, y=fcr_v, mode="lines+markers", name="FCR",
             line=dict(color="#FF6B35", width=2),
@@ -78,12 +78,15 @@ def _render_trends(gfit_data, health_data, intervals_data):
 
 
 def _hr_status(fc):
+    # Baseline definido em 18/07/2026: 78 é normal; alerta só a partir de 80.
     if fc is None:
         return "⚪", "Sem dados"
     if fc <= 67:
-        return "🟢", "Excelente"
-    if fc <= 74:
-        return "🟡", "Normal"
+        return "🟢", "Ótima"
+    if fc <= 78:
+        return "🟢", "Normal"
+    if fc <= 79:
+        return "🟡", "Atenção"
     return "🔴", "Elevada"
 
 
@@ -102,9 +105,9 @@ def _recovery_score(fc, sleep_h):
     total = 0
     if fc is not None:
         total += 1
-        if fc <= 67:
+        if fc <= 78:
             score += 1
-        elif fc <= 74:
+        elif fc <= 79:
             score += 0.5
     if sleep_h is not None:
         total += 1
@@ -214,7 +217,7 @@ def render_recuperacao(state: dict, gfit_data, health_data=None, intervals_data=
     else:
         rec_color = "#F44336"
         _sono_baixo = sono is not None and sono < 6.5
-        _fcr_alta = fc is not None and fc > 74
+        _fcr_alta = fc is not None and fc >= 80
         if _sono_baixo and not _fcr_alta:
             rec_label = "🛌 Durma mais esta noite"
         elif _fcr_alta and not _sono_baixo:

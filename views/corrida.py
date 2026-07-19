@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from logic.running import (
     get_current_distance, get_progression_table,
     RUNNING_DAYS, REST_DAYS, EQUIPMENT_REMINDER, get_day_label,
+    is_running_day, is_rest_day, is_optional_run_day, get_run_info,
 )
 from parsers.strava import get_runs, get_weekly_run_volume
 from parsers.health import get_run_workouts
@@ -14,6 +15,17 @@ def render_corrida(state: dict, strava_df, health_data):
     distance = get_current_distance(state)
 
     st.markdown(f"### 🏃 Corrida — Meta desta sessão: **{distance:.1f} km**")
+
+    # Informativo do dia (migrado do antigo Dashboard)
+    today = date.today()
+    run_info = get_run_info(today)
+    if is_running_day(today) and run_info:
+        st.info(f"🏃 Hoje: {run_info['descricao']} · **{distance:.1f} km**")
+    elif is_optional_run_day(today) and run_info:
+        st.info(f"🏃 Hoje: {run_info['descricao']}")
+    elif is_rest_day(today):
+        st.info("💤 Hoje é dia de descanso sugerido.")
+
     st.info(EQUIPMENT_REMINDER)
     st.markdown("---")
 

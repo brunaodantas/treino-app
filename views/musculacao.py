@@ -2,7 +2,15 @@ import time
 import streamlit as st
 import streamlit.components.v1 as _components
 from datetime import datetime
-from logic.schedule import EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict
+from logic.schedule import (
+    EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict,
+    get_scheduled_workout, get_next_workout, mark_workout_done, WORKOUT_SEQUENCE,
+)
+from logic.adaptation import (
+    get_current_phase, is_adaptation_phase, get_workouts_in_current_week,
+    ADAPTATION_MESSAGE, WORKOUTS_PER_WEEK,
+)
+from logic.running import get_day_label
 from utils import now_br
 
 MUSCLE_EMOJI = {
@@ -333,6 +341,50 @@ def _render_picker(state: dict, save_fn):
         _components.html(_WAKELOCK_OFF, height=0)
         st.session_state._wakelock_active = False
 
+    from datetime import date
+    today = date.today()
+
+    # ── Cabeçalho: data + treino programado ─────────────────────────────────────
+    col_t, col_r = st.columns([5, 1])
+    with col_t:
+        st.markdown(f"### 🏋️ Musculação — {today.strftime('%d/%m')} ({get_day_label(today)})")
+    with col_r:
+        if st.button("🔄", help="Recarregar", key="refresh_musc"):
+            _components.html("<script>window.parent.location.reload();</script>", height=0)
+
+    today_workout = get_scheduled_workout(state)
+    if today_workout:
+        st.info(f"📌 Programado para hoje: **{WORKOUT_LABELS.get(today_workout, today_workout)}**")
+
+    # ── Periodização ────────────────────────────────────────────────────────────
+    phase = get_current_phase(state)
+    week = phase["semana_global"]
+    phase_week = phase["semana_na_fase"]
+    phase_start, phase_end = phase["semanas"]
+    phase_duration = phase_end - phase_start + 1
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown(f"**{phase['nome']} — Semana {phase_week} de {phase_duration}** (semana {week} no total)")
+        st.progress(min(phase_week / phase_duration, 1.0))
+        st.caption(phase["descricao"])
+        if is_adaptation_phase(state):
+            done_in_week = get_workouts_in_current_week(state)
+            st.caption(f"{done_in_week}/{WORKOUTS_PER_WEEK} treinos desta semana")
+    with col2:
+        week_override = st.number_input(
+            "Ajustar semana", min_value=1, max_value=20,
+            value=week, step=1, key="week_override",
+            help="Ajuste manual da semana de periodização",
+        )
+        if week_override != week:
+            state["adaptation_week_override"] = week_override
+            save_fn(state)
+            st.rerun()
+    if is_adaptation_phase(state):
+        st.warning(ADAPTATION_MESSAGE)
+
+    st.markdown("---")
     st.markdown("### Qual treino hoje?")
 
     rows = [["A", "B"], ["C", "D"], ["E"]]
@@ -342,15 +394,53 @@ def _render_picker(state: dict, save_fn):
             with col:
                 conflict, _ = check_72h_conflict(state, letter)
                 warn = "  ⚠️" if conflict else ""
+                is_today = (letter == today_workout)
                 btn = st.button(
                     f"**{letter}** — {WORKOUT_DESC[letter]}{warn}",
                     key=f"pick_{letter}",
                     use_container_width=True,
-                    type="primary",
+                    type="primary" if (is_today or not today_workout) else "secondary",
                 )
                 if btn:
                     _init_session(letter, state, save_fn)
                     st.rerun()
+
+    # ── Treino E (curinga) ──────────────────────────────────────────────────────
+    e_conflict, e_msg = check_72h_conflict(state, "E")
+    if state.get("use_e_next"):
+        if st.button("❌ Cancelar Treino E (curinga)", use_container_width=True):
+            state["use_e_next"] = False
+            save_fn(state)
+            st.rerun()
+    else:
+        if st.button("⚡ Marcar Treino E como próximo (curinga)",
+                     disabled=e_conflict, use_container_width=True):
+            state["use_e_next"] = True
+            save_fn(state)
+            st.rerun()
+        if e_conflict:
+            st.caption(e_msg)
+
+    # ── Próximo sugerido ────────────────────────────────────────────────────────
+    prox = get_next_workout(state)
+    if prox:
+        st.caption(f"⏭️ Próximo sugerido: {WORKOUT_LABELS.get(prox, prox)}")
+
+    # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
+    with st.expander("✅ Registrar treino já feito (sem detalhar séries)"):
+        quick = st.selectbox(
+            "Treino", list(WORKOUT_LABELS.keys()),
+            format_func=lambda w: WORKOUT_LABELS.get(w, w),
+            key="quick_mark_sel",
+        )
+        q_conflict, q_msg = check_72h_conflict(state, quick)
+        if q_conflict:
+            st.caption(q_msg)
+        if st.button(f"Registrar Treino {quick}", use_container_width=True, key="quick_mark_btn"):
+            mark_workout_done(state, workout=quick)
+            save_fn(state)
+            st.success(f"Treino {quick} registrado!")
+            st.rerun()
 
     history = state.get("workout_history", [])
     if history:
