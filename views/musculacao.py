@@ -427,26 +427,30 @@ def _render_picker(state: dict, save_fn):
 def _render_weight_history(state: dict):
     import pandas as pd
     from datetime import datetime
-    from parsers.strava import get_weight_training
+    from parsers.strava_api import get_valid_token, fetch_recent_activities, is_connected
 
     rows = []
 
-    # Strava (fonte principal — histórico completo)
-    strava_df = st.session_state.get("strava_df")
-    wt = get_weight_training(strava_df)
-    if not wt.empty:
-        for _, r in wt.head(30).iterrows():
-            data = r.get("data")
-            data_fmt = data.strftime("%d/%m/%Y") if hasattr(data, "strftime") else str(data)[:10]
-            nome = str(r.get("nome", "")).strip() or "Musculação"
-            dur = r.get("duracao_min")
-            fc = r.get("fc_media")
-            rows.append({
-                "Data": data_fmt,
-                "Treino": nome,
-                "Duração": f"{int(dur)} min" if pd.notna(dur) and dur > 0 else "—",
-                "FC Média": f"{int(fc)} bpm" if pd.notna(fc) and fc > 0 else "—",
-            })
+    # Strava API (fonte principal)
+    if is_connected(state):
+        token = get_valid_token(state, lambda s: None)
+        if token:
+            activities = fetch_recent_activities(token, per_page=100)
+            wt = [a for a in activities if a.get("sport_type") == "WeightTraining"]
+            for a in wt[:30]:
+                try:
+                    dt = datetime.fromisoformat(a["start_date_local"].replace("Z", ""))
+                    data_fmt = dt.strftime("%d/%m/%Y")
+                except Exception:
+                    data_fmt = str(a.get("start_date_local", ""))[:10]
+                dur = a.get("elapsed_time", 0)
+                fc = a.get("average_heartrate")
+                rows.append({
+                    "Data": data_fmt,
+                    "Treino": a.get("name", "Musculação"),
+                    "Duração": f"{dur // 60} min" if dur else "—",
+                    "FC Média": f"{int(fc)} bpm" if fc else "—",
+                })
 
     # Fallback: histórico interno do app
     if not rows:
@@ -470,7 +474,7 @@ def _render_weight_history(state: dict):
     if rows:
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
     else:
-        st.info("Faça upload do CSV do Strava na sidebar para ver seu histórico de musculação.")
+        st.info("Conecte o Strava na aba ⚙️ para ver seu histórico de musculação.")
 
 
 # ── Sessão ativa ───────────────────────────────────────────────────────────────
