@@ -348,14 +348,44 @@ if "code" in _params and _params.get("state", "") == "googlefit" and not st.sess
 
 
 # ── Navigation ─────────────────────────────────────────────────────────────────
+state = st.session_state.app_state
+
+
+def _resumo_dia(state) -> str:
+    """Linha única de decisão do dia: treino previsto + frescor + veredito."""
+    from logic.schedule import get_next_workout, get_scheduled_workout
+    _desc = {"A": "Treino A", "B": "Treino B", "C": "Treino C (pernas)",
+             "D": "Treino D", "E": "Treino E (curinga)"}
+    prog = get_scheduled_workout(state)
+    w = prog or get_next_workout(state)
+    treino = _desc.get(w, f"Treino {w}") + ("" if prog else " (próximo)")
+    parts = [f"🏋️ {treino}"]
+
+    data = st.session_state.intervals_data or st.session_state.get("health_log_data") or []
+    tsb = None
+    for e in sorted(data, key=lambda x: x.get("data", ""), reverse=True):
+        if e.get("tsb") is not None:
+            tsb = e.get("tsb")
+            break
+    if tsb is not None:
+        veredito = "pode ir" if tsb > -10 else ("modere" if tsb > -20 else "pegue leve")
+        parts.append(f"frescor {tsb:+.0f} · {veredito}")
+    return "  ·  ".join(parts)
+
+
+st.markdown(
+    "<div style='background:#161A23;border:1px solid #262B36;border-radius:10px;"
+    "padding:8px 13px;font-size:.86rem;color:#C7CDD6;margin-bottom:8px'>"
+    f"{_resumo_dia(state)}</div>",
+    unsafe_allow_html=True,
+)
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "📈 Saúde",
     "🏋️ Musculação",
     "🏃 Corrida",
     "⚙️",
 ])
-
-state = st.session_state.app_state
 
 
 def _safe_render(nome, fn):

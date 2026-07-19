@@ -15,7 +15,7 @@ def _chart_layout(title, show_legend=False):
         paper_bgcolor=_SURFACE, plot_bgcolor=_SURFACE,
         margin=dict(l=0, r=4, t=32, b=0), height=190,
         showlegend=show_legend, legend=leg,
-        xaxis=dict(showgrid=False, zeroline=False,
+        xaxis=dict(showgrid=False, zeroline=False, type="category",
                    tickfont=dict(size=9, color=_INK), tickangle=-30, fixedrange=True),
         yaxis=dict(showgrid=True, gridcolor=_GRID, zeroline=False,
                    tickfont=dict(size=9, color=_INK), fixedrange=True),
