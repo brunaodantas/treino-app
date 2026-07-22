@@ -21,7 +21,7 @@ WORKOUT_LABELS = {
     "B": "Treino B — Costas · Bíceps",
     "C": "Treino C — Pernas",
     "D": "Treino D — Peito · Costas · Braços",
-    "E": "Treino E — Ombros · Trapézio · Braços",
+    "E": "Treino E — Pernas B · Core (bônus)",
 }
 
 EXERCISES_C_REDUCED = [
@@ -37,6 +37,8 @@ EXERCISES = {
         {"nome": "Elevação Lateral Polia",     "series": 3, "reps": "12-15", "peso_atual":  9.0, "peso_prog": 11.0},
         {"nome": "Tríceps Corda Barra",        "series": 3, "reps": "12-15", "peso_atual": 50.0, "peso_prog": 55.0},
         {"nome": "Tríceps Francês Polia",      "series": 3, "reps": "10-12", "peso_atual": 25.0, "peso_prog": 30.0},
+        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0},
+        {"nome": "Abdominal Máquina",          "series": 3, "reps": "15",    "peso_atual":  0.0, "peso_prog":  0.0},
     ],
     "B": [
         {"nome": "Puxada Alta Polia",          "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0},
@@ -44,13 +46,16 @@ EXERCISES = {
         {"nome": "Remada Chest Supported",     "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0},
         {"nome": "Rosca Direta Polia",         "series": 3, "reps": "12-15", "peso_atual": 25.0, "peso_prog": 26.0},
         {"nome": "Rosca Scott Máquina",        "series": 3, "reps": "10-12", "peso_atual": 25.0, "peso_prog": 27.0},
+        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0},
     ],
     "C": [
         {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
-        {"nome": "Cadeira Extensora",          "series": 3, "reps": "12-15", "peso_atual": 63.0, "peso_prog": 70.0},
-        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual": 41.0, "peso_prog": 46.0},
-        {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual": 50.0, "peso_prog": 55.0},
-        {"nome": "Panturrilha Sentado",        "series": 3, "reps": "15-20", "peso_atual": 50.0, "peso_prog": 55.0},
+        {"nome": "Cadeira Extensora",          "series": 3, "reps": "12-15", "peso_atual": 63.0,  "peso_prog": 70.0},
+        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual": 41.0,  "peso_prog": 46.0},
+        {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual": 50.0,  "peso_prog": 55.0},
+        {"nome": "Panturrilha Sentado",        "series": 3, "reps": "15-20", "peso_atual": 50.0,  "peso_prog": 55.0},
+        {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":  0.0,  "peso_prog":  0.0},
+        {"nome": "Abdominal Máquina",          "series": 3, "reps": "15",    "peso_atual":  0.0,  "peso_prog":  0.0},
     ],
     "D": [
         {"nome": "Supino Reto Máquina",        "series": 3, "reps": "10-12", "peso_atual": 40.0, "peso_prog": 45.0},
@@ -59,15 +64,17 @@ EXERCISES = {
         {"nome": "Remada Unilateral Halter",   "series": 3, "reps": "10-12", "peso_atual": 24.0, "peso_prog": 27.0},
         {"nome": "Rosca Martelo Halter",       "series": 3, "reps": "10-12", "peso_atual": 14.0, "peso_prog": 16.0},
         {"nome": "Tríceps Mergulho Máquina",   "series": 3, "reps": "10-12", "peso_atual": 70.0, "peso_prog": 80.0},
+        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0},
+        {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":  0.0, "peso_prog":  0.0},
     ],
     "E": [
-        {"nome": "Desenvolvimento Ombros Máquina",  "series": 3, "reps": "10-12", "peso_atual": 30.0, "peso_prog": 35.0},
-        {"nome": "Elevação Lateral Máquina",        "series": 3, "reps": "12-15", "peso_atual": 10.0, "peso_prog": 12.0},
-        {"nome": "Elevação Frontal Polia",          "series": 3, "reps": "12-15", "peso_atual":  9.0, "peso_prog": 11.0},
-        {"nome": "Crucifixo Invertido",             "series": 3, "reps": "12-15", "peso_atual": 10.0, "peso_prog": 12.0},
-        {"nome": "Encolhimento Ombros Halter",      "series": 3, "reps": "12-15", "peso_atual": 20.0, "peso_prog": 22.0},
-        {"nome": "Rosca Martelo Halter",            "series": 3, "reps": "10-12", "peso_atual": 14.0, "peso_prog": 16.0},
-        {"nome": "Tríceps Pulley Reto",             "series": 3, "reps": "12-15", "peso_atual": 25.0, "peso_prog": 27.0},
+        {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
+        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0},
+        {"nome": "Abdução Quadril Máquina",    "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
+        {"nome": "Panturrilha em Pé Máquina",  "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
+        {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0},
+        {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0},
+        {"nome": "Prancha",                    "series": 3, "reps": "45s",   "peso_atual":   0.0, "peso_prog":   0.0},
     ],
 }
 
