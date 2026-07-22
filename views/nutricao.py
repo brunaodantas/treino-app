@@ -92,7 +92,10 @@ def _macros_item(nome, qtd_g):
 
 
 def render_nutricao(state: dict, save_fn):
-    st.markdown("### 🥗 Nutrição")
+    col_title, col_refresh = st.columns([6, 1])
+    col_title.markdown("### 🥗 Nutrição")
+    if col_refresh.button("🔄", key="nut_refresh", help="Atualizar"):
+        st.rerun()
 
     today = str(date.today())
     nut = state.setdefault("nutricao", {})
