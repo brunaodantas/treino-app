@@ -115,7 +115,7 @@ def render_nutricao(state: dict, save_fn):
 
         resumo = f"{p_tot['kcal']} kcal · {p_tot['prot']:.0f}g prot" if itens else "vazio"
 
-        with st.expander(f"{p['label']} — {resumo}"):
+        with st.expander(f"{p['label']} — {resumo}", expanded=False):
             # Adicionar alimento
             col_sel, col_qtd, col_btn = st.columns([4, 2, 1])
             with col_sel:
