@@ -402,11 +402,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 Saúde",
     "🏋️ Musculação",
     "🏃 Corrida",
-    "⚙️",
+    "🥗 Nutrição",
+    "⚙️ Settings",
 ])
 
 
@@ -451,6 +452,10 @@ with tab3:
     _safe_render("Corrida", lambda: render_corrida(state, st.session_state.strava_df, st.session_state.health_data))
 
 with tab4:
+    from views.nutricao import render_nutricao
+    _safe_render("Nutrição", lambda: render_nutricao(state, save_state))
+
+with tab5:
     col_cfg, col_ref7 = st.columns([5, 1])
     with col_cfg:
         st.markdown("### ⚙️ Configurações")
