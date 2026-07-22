@@ -21,7 +21,7 @@ WORKOUT_LABELS = {
     "B": "Treino B — Costas · Bíceps",
     "C": "Treino C — Pernas",
     "D": "Treino D — Peito · Costas · Braços",
-    "E": "Treino E — Pernas B · Core (bônus)",
+    "E": "Treino E — Glúteo · Core (bônus)",
 }
 
 EXERCISES_C_REDUCED = [
@@ -68,10 +68,8 @@ EXERCISES = {
         {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":  0.0, "peso_prog":  0.0},
     ],
     "E": [
-        {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
-        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0},
         {"nome": "Abdução Quadril Máquina",    "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
-        {"nome": "Panturrilha em Pé Máquina",  "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
+        {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
         {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0},
         {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0},
         {"nome": "Prancha",                    "series": 3, "reps": "45s",   "peso_atual":   0.0, "peso_prog":   0.0},

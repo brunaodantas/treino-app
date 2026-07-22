@@ -24,7 +24,7 @@ WORKOUT_DESC = {
     "B": "Costas · Ombro Post. · Bíceps",
     "C": "Pernas",
     "D": "Peito · Costas · Braços",
-    "E": "Pernas B · Core (bônus)",
+    "E": "Glúteo · Core (bônus)",
 }
 
 # ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
