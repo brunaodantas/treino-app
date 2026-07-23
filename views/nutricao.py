@@ -4,6 +4,8 @@ from datetime import date
 META = {"kcal": 2100, "prot": 188, "carb": 180, "gord": 60}
 
 ALIMENTOS = {
+    # Combos prontos
+    "🥛 Vitamina base (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
     # Proteínas
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
