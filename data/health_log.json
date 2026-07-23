@@ -1,4 +1,5 @@
 [
+  {"data": "2026-07-23", "hrv": null, "fc_repouso": 74, "sono_horas": 7.2, "peso_kg": null, "ctl": 13.8, "atl": 29.3, "tsb": -15.5},
   {"data": "2026-07-22", "hrv": null, "fc_repouso": 69, "sono_horas": 8.3, "peso_kg": null, "ctl": 12.7, "atl": 23.9, "tsb": -11.1},
   {"data": "2026-07-21", "hrv": null, "fc_repouso": 76, "sono_horas": 5.8, "peso_kg": null, "ctl": 13.0, "atl": 23.5, "tsb": -10.5, "notas": "Acordou disposto apesar do sono curto."},
   {"data": "2026-07-20", "hrv": null, "fc_repouso": 72, "sono_horas": 7.4, "peso_kg": null, "ctl": 12.5, "atl": 19.3, "tsb": -6.9},
