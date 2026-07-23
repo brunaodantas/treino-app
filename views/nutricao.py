@@ -3,9 +3,12 @@ from datetime import date
 
 META = {"kcal": 2100, "prot": 188, "carb": 180, "gord": 60}
 
-ALIMENTOS = {
-    # Combos prontos
-    "🥛 Vitamina base (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
+# Combos prontos — aparecem no topo da lista (não são ordenados)
+COMBOS = {
+    "Vitamina base (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
+}
+
+ALIMENTOS_BASE = {
     # Proteínas
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
@@ -17,7 +20,7 @@ ALIMENTOS = {
     "Arroz branco cozido (100g)": (130, 3,  28, 0,  100),
     "Feijão cozido (100g)":       (130, 8,  23, 1,  100),
     "Aveia (30g)":                (111, 4,  19, 2,  30),
-    "Banana média (~100g)":        (89,  1,  23, 0,  100),
+    "Banana média (~100g)":       (89,  1,  23, 0,  100),
     "Banana prata (~80g)":        (73,  1,  19, 0,  80),
     "Mamão (150g)":               (65,  1,  17, 0,  150),
     "Abacate (100g)":             (160, 2,  9,  15, 100),
@@ -37,6 +40,12 @@ ALIMENTOS = {
     "Café preto":                 (5,   0,  1,  0,  200),
     "Creatina (5g)":              (0,   0,  0,  0,  5),
 }
+
+# Dict unificado para lookup de macros
+ALIMENTOS = {**COMBOS, **ALIMENTOS_BASE}
+
+# Lista para o selectbox: combos primeiro, depois o resto em ordem alfabética
+LISTA_ALIMENTOS = list(COMBOS.keys()) + sorted(ALIMENTOS_BASE.keys())
 
 PERIODOS = [
     {"id": "manha",  "label": "☀️ Manhã (7–9h)"},
@@ -119,7 +128,7 @@ def render_nutricao(state: dict, save_fn):
         )
     with col_ali:
         alimento_escolhido = st.selectbox(
-            "Alimento", ["— selecione —"] + sorted(ALIMENTOS.keys()),
+            "Alimento", ["— selecione —"] + LISTA_ALIMENTOS,
             key="nut_ali",
             label_visibility="collapsed",
         )
