@@ -8,6 +8,7 @@ ALIMENTOS = {
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
     "Frango peito (100g)":        (165, 31, 0,  4,  100),
+    "Fígado de boi (100g)":       (135, 21, 4,  4,  100),
     "Ovo inteiro (~50g)":         (70,  6,  0,  5,  50),
     "Iogurte Grego (100g)":       (65,  9,  4,  3,  100),
     "Iogurte Grego (200g)":       (130, 18, 8,  6,  200),
@@ -20,6 +21,8 @@ ALIMENTOS = {
     "Abacate (100g)":             (160, 2,  9,  15, 100),
     "Pão de forma (fatia ~25g)":  (66,  2,  12, 1,  25),
     "Batata-doce cozida (100g)":  (86,  2,  20, 0,  100),
+    "Batata cozida (100g)":       (77,  2,  18, 0,  100),
+    "Macarrão cozido (100g)":     (158, 5,  31, 1,  100),
     "Leite integral (200ml)":     (122, 6,  10, 7,  200),
     "Leite integral (300ml)":     (183, 9,  14, 10, 300),
     "Chocolate em pó (15g)":      (60,  2,  12, 1,  15),
@@ -27,6 +30,8 @@ ALIMENTOS = {
     "Amendoim (30g)":             (170, 8,  5,  14, 30),
     "Verduras mistas (100g)":     (30,  2,  5,  0,  100),
     "Brócolis (100g)":            (34,  3,  7,  0,  100),
+    "Abóbora cozida (100g)":      (26,  1,  6,  0,  100),
+    "Cenoura cozida (100g)":      (35,  1,  8,  0,  100),
     "Café preto":                 (5,   0,  1,  0,  200),
     "Creatina (5g)":              (0,   0,  0,  0,  5),
 }
@@ -34,13 +39,16 @@ ALIMENTOS = {
 CATEGORIAS = {
     "⚡ Combos":    ["Vitamina base (leite+whey+achoc+creatina)"],
     "🥩 Proteínas": ["Whey Protein (40g)", "Whey Protein (60g)", "Frango peito (100g)",
-                     "Ovo inteiro (~50g)", "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
-    "🍚 Carbs":     ["Arroz branco cozido (100g)", "Feijão cozido (100g)", "Aveia (30g)",
-                     "Banana média (~100g)", "Banana prata (~80g)", "Mamão (150g)",
-                     "Abacate (100g)", "Pão de forma (fatia ~25g)", "Batata-doce cozida (100g)"],
+                     "Fígado de boi (100g)", "Ovo inteiro (~50g)",
+                     "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
+    "🍚 Carbs":     ["Arroz branco cozido (100g)", "Feijão cozido (100g)", "Macarrão cozido (100g)",
+                     "Aveia (30g)", "Banana média (~100g)", "Banana prata (~80g)", "Mamão (150g)",
+                     "Abacate (100g)", "Pão de forma (fatia ~25g)",
+                     "Batata-doce cozida (100g)", "Batata cozida (100g)"],
     "🥛 Laticínios":["Leite integral (200ml)", "Leite integral (300ml)", "Chocolate em pó (15g)"],
     "🫒 Outros":    ["Azeite (1 colher 10ml)", "Amendoim (30g)", "Verduras mistas (100g)",
-                     "Brócolis (100g)", "Café preto", "Creatina (5g)"],
+                     "Brócolis (100g)", "Abóbora cozida (100g)", "Cenoura cozida (100g)",
+                     "Café preto", "Creatina (5g)"],
 }
 
 PERIODOS = [
