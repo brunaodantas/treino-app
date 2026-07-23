@@ -3,20 +3,14 @@ from datetime import date
 
 META = {"kcal": 2100, "prot": 188, "carb": 180, "gord": 60}
 
-# Combos prontos — aparecem no topo da lista (não são ordenados)
-COMBOS = {
+ALIMENTOS = {
     "Vitamina base (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
-}
-
-ALIMENTOS_BASE = {
-    # Proteínas
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
     "Frango peito (100g)":        (165, 31, 0,  4,  100),
-    "Ovo inteiro (unid ~50g)":    (70,  6,  0,  5,  50),
+    "Ovo inteiro (~50g)":         (70,  6,  0,  5,  50),
     "Iogurte Grego (100g)":       (65,  9,  4,  3,  100),
     "Iogurte Grego (200g)":       (130, 18, 8,  6,  200),
-    # Carboidratos
     "Arroz branco cozido (100g)": (130, 3,  28, 0,  100),
     "Feijão cozido (100g)":       (130, 8,  23, 1,  100),
     "Aveia (30g)":                (111, 4,  19, 2,  30),
@@ -26,32 +20,34 @@ ALIMENTOS_BASE = {
     "Abacate (100g)":             (160, 2,  9,  15, 100),
     "Pão de forma (fatia ~25g)":  (66,  2,  12, 1,  25),
     "Batata-doce cozida (100g)":  (86,  2,  20, 0,  100),
-    # Laticínios
     "Leite integral (200ml)":     (122, 6,  10, 7,  200),
     "Leite integral (300ml)":     (183, 9,  14, 10, 300),
     "Chocolate em pó (15g)":      (60,  2,  12, 1,  15),
-    # Gorduras
     "Azeite (1 colher 10ml)":     (88,  0,  0,  10, 10),
     "Amendoim (30g)":             (170, 8,  5,  14, 30),
-    # Legumes / verduras
     "Verduras mistas (100g)":     (30,  2,  5,  0,  100),
     "Brócolis (100g)":            (34,  3,  7,  0,  100),
-    # Sem macro relevante
     "Café preto":                 (5,   0,  1,  0,  200),
     "Creatina (5g)":              (0,   0,  0,  0,  5),
 }
 
-# Dict unificado para lookup de macros
-ALIMENTOS = {**COMBOS, **ALIMENTOS_BASE}
-
-# Lista para o selectbox: combos primeiro, depois o resto em ordem alfabética
-LISTA_ALIMENTOS = list(COMBOS.keys()) + sorted(ALIMENTOS_BASE.keys())
+CATEGORIAS = {
+    "⚡ Combos":    ["Vitamina base (leite+whey+achoc+creatina)"],
+    "🥩 Proteínas": ["Whey Protein (40g)", "Whey Protein (60g)", "Frango peito (100g)",
+                     "Ovo inteiro (~50g)", "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
+    "🍚 Carbs":     ["Arroz branco cozido (100g)", "Feijão cozido (100g)", "Aveia (30g)",
+                     "Banana média (~100g)", "Banana prata (~80g)", "Mamão (150g)",
+                     "Abacate (100g)", "Pão de forma (fatia ~25g)", "Batata-doce cozida (100g)"],
+    "🥛 Laticínios":["Leite integral (200ml)", "Leite integral (300ml)", "Chocolate em pó (15g)"],
+    "🫒 Outros":    ["Azeite (1 colher 10ml)", "Amendoim (30g)", "Verduras mistas (100g)",
+                     "Brócolis (100g)", "Café preto", "Creatina (5g)"],
+}
 
 PERIODOS = [
-    {"id": "manha",  "label": "☀️ Manhã (7–9h)"},
-    {"id": "almoco", "label": "🍽️ Almoço (12h)"},
-    {"id": "tarde",  "label": "🥛 Tarde (15–16h)"},
-    {"id": "jantar", "label": "🌙 Jantar (20h)"},
+    {"id": "manha",  "label": "☀️ Manhã"},
+    {"id": "almoco", "label": "🍽️ Almoço"},
+    {"id": "tarde",  "label": "🥛 Tarde"},
+    {"id": "jantar", "label": "🌙 Jantar"},
 ]
 PERIODO_IDS   = [p["id"]    for p in PERIODOS]
 PERIODO_LABEL = {p["id"]: p["label"] for p in PERIODOS}
@@ -81,7 +77,7 @@ def _macros_item(nome, qtd_g):
 def render_nutricao(state: dict, save_fn):
     col_title, col_refresh = st.columns([6, 1])
     col_title.markdown("### 🥗 Nutrição")
-    if col_refresh.button("🔄", key="nut_refresh", help="Atualizar"):
+    if col_refresh.button("🔄", key="nut_refresh"):
         st.rerun()
 
     today = str(date.today())
@@ -116,41 +112,62 @@ def render_nutricao(state: dict, save_fn):
     )
     st.markdown("---")
 
-    # ── Adicionar alimento (fora dos expanders para não fechar/saltar) ────────
+    # ── Adicionar alimento — sem teclado automático ───────────────────────────
     st.markdown("**Adicionar alimento**")
-    col_per, col_ali = st.columns([2, 3])
-    with col_per:
-        periodo_escolhido = st.selectbox(
-            "Refeição", PERIODO_IDS,
-            format_func=lambda x: PERIODO_LABEL[x],
-            key="nut_per",
-            label_visibility="collapsed",
-        )
-    with col_ali:
-        alimento_escolhido = st.selectbox(
-            "Alimento", ["— selecione —"] + LISTA_ALIMENTOS,
-            key="nut_ali",
-            label_visibility="collapsed",
-        )
 
-    ref_g = ALIMENTOS[alimento_escolhido][4] if alimento_escolhido != "— selecione —" else 100
-    col_qtd, col_btn = st.columns([3, 1])
-    with col_qtd:
-        qtd = st.number_input(
-            "Qtd (g/ml)", min_value=1, max_value=2000,
-            value=ref_g, step=5, key="nut_qtd",
-            label_visibility="collapsed",
-        )
-    with col_btn:
-        if st.button("➕ Add", key="nut_add", use_container_width=True):
-            if alimento_escolhido != "— selecione —":
+    # 1. Período (radio horizontal — toque, sem teclado)
+    periodo_escolhido = st.radio(
+        "Refeição", PERIODO_IDS,
+        format_func=lambda x: PERIODO_LABEL[x],
+        horizontal=True, key="nut_per",
+        label_visibility="collapsed",
+    )
+
+    # 2. Categoria (radio horizontal)
+    cat_keys = list(CATEGORIAS.keys())
+    categoria = st.radio(
+        "Categoria", cat_keys,
+        horizontal=True, key="nut_cat",
+        label_visibility="collapsed",
+    )
+
+    # 3. Alimentos da categoria como botões — toque direto, sem teclado
+    alimentos_cat = CATEGORIAS[categoria]
+    sel = st.session_state.get("nut_sel")
+
+    cols = st.columns(2)
+    for i, nome in enumerate(alimentos_cat):
+        ativo = nome == sel
+        label = f"✅ {nome}" if ativo else nome
+        if cols[i % 2].button(label, key=f"food_{nome}", use_container_width=True):
+            st.session_state["nut_sel"] = nome
+            st.rerun()
+
+    # 4. Quantidade + Add (só aparece quando um alimento está selecionado)
+    sel = st.session_state.get("nut_sel")
+    if sel and sel in ALIMENTOS:
+        ref_g = ALIMENTOS[sel][4]
+        k0, p0, c0, g0 = _macros_item(sel, ref_g)
+        st.caption(f"**{sel}** → {k0} kcal · {p0:.0f}g prot · {c0:.0f}g carb · {g0:.0f}g gord")
+
+        col_qtd, col_add = st.columns([3, 2])
+        with col_qtd:
+            qtd = st.number_input(
+                "Qtd (g/ml/porção)", min_value=1, max_value=2000,
+                value=ref_g, step=5, key="nut_qtd",
+            )
+        with col_add:
+            st.markdown("<div style='margin-top:26px'>", unsafe_allow_html=True)
+            if st.button("➕ Adicionar", key="nut_add", use_container_width=True):
                 periodos_state.setdefault(periodo_escolhido, []).append(
-                    {"nome": alimento_escolhido, "qtd": qtd}
+                    {"nome": sel, "qtd": qtd}
                 )
                 nut["periodos"] = periodos_state
                 state["nutricao"] = nut
                 save_fn(state)
+                st.session_state.pop("nut_sel", None)
                 st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -167,9 +184,9 @@ def render_nutricao(state: dict, save_fn):
 
         resumo = f"{p_tot['kcal']} kcal · {p_tot['prot']:.0f}g prot" if itens else "vazio"
 
-        with st.expander(f"{p['label']} — {resumo}"):
+        with st.expander(f"{p['label']} (7–9h) — {resumo}" if pid == "manha"
+                         else f"{p['label']} — {resumo}"):
             if itens:
-                changed = False
                 to_remove = []
                 for idx, item in enumerate(itens):
                     k, pr, c, g = _macros_item(item["nome"], item["qtd"])
@@ -182,7 +199,6 @@ def render_nutricao(state: dict, save_fn):
                     with c2:
                         if st.button("✕", key=f"rm_{pid}_{idx}", use_container_width=True):
                             to_remove.append(idx)
-                            changed = True
                 if to_remove:
                     for idx in reversed(to_remove):
                         itens.pop(idx)
