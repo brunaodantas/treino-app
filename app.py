@@ -344,14 +344,12 @@ state = st.session_state.app_state
 
 
 def _resumo_dia(state) -> str:
-    """Linha única de decisão do dia: treino previsto + frescor + veredito."""
-    from logic.schedule import get_next_workout, get_scheduled_workout
-    _desc = {"A": "Treino A", "B": "Treino B", "C": "Treino C (pernas)",
-             "D": "Treino D", "E": "Treino E (curinga)"}
-    prog = get_scheduled_workout(state)
-    w = prog or get_next_workout(state)
-    treino = _desc.get(w, f"Treino {w}") + ("" if prog else " (próximo)")
-    parts = [f"🏋️ {treino}"]
+    """
+    Linha única do dia: só estado de recuperação.
+    Não prescreve treino — Bruno pediu (25/07/2026) para o app parar de dizer
+    "hoje você treina X". Quem decide o treino é ele.
+    """
+    parts = []
 
     data = st.session_state.intervals_data or st.session_state.get("health_log_data") or []
     tsb = None
@@ -365,12 +363,16 @@ def _resumo_dia(state) -> str:
     return "  ·  ".join(parts)
 
 
-st.markdown(
-    "<div style='background:#161A23;border:1px solid #262B36;border-radius:10px;"
-    "padding:8px 13px;font-size:.86rem;color:#C7CDD6;margin-bottom:8px'>"
-    f"{_resumo_dia(state)}</div>",
-    unsafe_allow_html=True,
-)
+_resumo = _resumo_dia(state)
+if _resumo:
+    st.markdown(
+        "<div style='background:rgba(255,255,255,.045);"
+        "border:1px solid rgba(255,140,0,.28);border-radius:12px;"
+        "backdrop-filter:blur(18px) saturate(150%);"
+        "padding:8px 13px;font-size:.86rem;color:#CBD5E1;margin-bottom:8px'>"
+        f"{_resumo}</div>",
+        unsafe_allow_html=True,
+    )
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 Saúde",

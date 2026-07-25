@@ -23,9 +23,9 @@ MUSCLE_EMOJI = {
 }
 
 WORKOUT_DESC = {
-    "1": "Corpo inteiro · Supino Inclinado + Remada Chest",
-    "2": "Corpo inteiro · Supino Máquina + Remada V",
-    "3": "Corpo inteiro · Supino Halter + Remada Unilateral",
+    "A": "Corpo inteiro · Supino Inclinado + Remada Chest",
+    "B": "Corpo inteiro · Supino Máquina + Remada V",
+    "C": "Corpo inteiro · Supino Halter + Remada Unilateral",
 }
 
 # ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
@@ -405,10 +405,6 @@ def _render_picker(state: dict, save_fn):
         if st.button("🔄", help="Recarregar", key="refresh_musc"):
             _components.html("<script>window.parent.location.reload();</script>", height=0)
 
-    today_workout = get_scheduled_workout(state)
-    if today_workout:
-        st.info(f"📌 Programado para hoje: **{WORKOUT_LABELS.get(today_workout, today_workout)}**")
-
     # ── Periodização ────────────────────────────────────────────────────────────
     phase = get_current_phase(state)
     week = phase["semana_global"]
@@ -440,15 +436,13 @@ def _render_picker(state: dict, save_fn):
     st.markdown("---")
     st.markdown("### Qual treino hoje?")
 
-    # Só o treino do dia (ou o próximo do ciclo) vem destacado — se todos ficam
-    # primary, nada fica em destaque.
-    suggested = today_workout or get_next_workout(state)
-
+    # Todos os botões em laranja. O app não prescreve treino do dia — Bruno
+    # escolhe (pedido de 25/07/2026).
     def _pick_row(row: list):
         cols = st.columns(len(row))
         for col, letter in zip(cols, row):
             with col:
-                kind = "primary" if letter == suggested else "secondary"
+                kind = "primary"
                 if st.button(
                     f"**{letter}** — {WORKOUT_DESC.get(letter, letter)}",
                     key=f"pick_{letter}",
@@ -458,7 +452,7 @@ def _render_picker(state: dict, save_fn):
                     _init_session(letter, state, save_fn)
                     st.rerun()
 
-    for row in [["1", "2"], ["3"]]:
+    for row in [["A", "B"], ["C"]]:
         _pick_row(row)
 
 

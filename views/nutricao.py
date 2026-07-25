@@ -4,7 +4,7 @@ from datetime import date
 META = {"kcal": 2100, "prot": 188, "carb": 180, "gord": 60}
 
 ALIMENTOS = {
-    "Vitamina base (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
+    "Vitamina base — 1 porção (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
     "Frango peito (100g)":        (165, 31, 0,  4,  100),
@@ -37,7 +37,7 @@ ALIMENTOS = {
 }
 
 CATEGORIAS = {
-    "⚡ Combos":    ["Vitamina base (leite+whey+achoc+creatina)"],
+    "⚡ Combos":    ["Vitamina base — 1 porção (leite+whey+achoc+creatina)"],
     "🥩 Proteínas": ["Whey Protein (40g)", "Whey Protein (60g)", "Frango peito (100g)",
                      "Fígado de boi (100g)", "Ovo inteiro (~50g)",
                      "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
@@ -105,6 +105,13 @@ def render_nutricao(state: dict, save_fn):
             tot["kcal"] += k; tot["prot"] += p
             tot["carb"] += c; tot["gord"] += g
 
+    if tot["kcal"] > META["kcal"] * 2:
+        st.error(
+            f"⚠️ {tot['kcal']:,} kcal no dia — provável erro de quantidade. "
+            "Itens em porção (como a vitamina) usam 1, não os ml. "
+            "Confira a lista abaixo e remova o item errado."
+        )
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Kcal", f"{tot['kcal']}", f"/ {META['kcal']}")
     col2.metric("Proteína", f"{tot['prot']:.0f}g", f"/ {META['prot']}g")
@@ -155,15 +162,31 @@ def render_nutricao(state: dict, save_fn):
     sel = st.session_state.get("nut_sel")
     if sel and sel in ALIMENTOS:
         ref_g = ALIMENTOS[sel][4]
+        # ref_g == 1 significa que o item é medido em PORÇÕES, não em gramas
+        # (ex: a vitamina base). Sem separar os dois casos, digitar "400" pensando
+        # em ml multiplicava a porção por 400 — foi o que deu 162.195 kcal.
+        por_porcao = ref_g == 1
         k0, p0, c0, g0 = _macros_item(sel, ref_g)
-        st.caption(f"**{sel}** → {k0} kcal · {p0:.0f}g prot · {c0:.0f}g carb · {g0:.0f}g gord")
+        unidade = "1 porção" if por_porcao else f"{ref_g}g"
+        st.caption(
+            f"**{sel}** · por {unidade} → "
+            f"{k0} kcal · {p0:.0f}g prot · {c0:.0f}g carb · {g0:.0f}g gord"
+        )
 
         col_qtd, col_add = st.columns([3, 2])
         with col_qtd:
-            qtd = st.number_input(
-                "Qtd (g/ml/porção)", min_value=1, max_value=2000,
-                value=ref_g, step=5, key="nut_qtd",
-            )
+            # Chave por alimento: evita carregar valor grande de um item em gramas
+            # para um item em porções (e estourar o max_value).
+            if por_porcao:
+                qtd = st.number_input(
+                    "Porções", min_value=1, max_value=6,
+                    value=1, step=1, key=f"nut_qtd_p_{sel}",
+                )
+            else:
+                qtd = st.number_input(
+                    "Qtd (g/ml)", min_value=1, max_value=2000,
+                    value=ref_g, step=5, key=f"nut_qtd_g_{sel}",
+                )
         with col_add:
             st.markdown("<div style='margin-top:26px'>", unsafe_allow_html=True)
             if st.button("➕ Adicionar", key="nut_add", use_container_width=True):

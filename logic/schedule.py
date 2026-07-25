@@ -6,7 +6,7 @@ from utils import now_br
 # Ciclo fixo de 3 treinos. Cada músculo é treinado 3x na semana em vez de 0,75x.
 # Superséries de antagonistas: o par mantém o descanso ideal por músculo (~2,4 min
 # no SS1) dentro do limite de 40 min de academia.
-WORKOUT_SEQUENCE = ["1", "2", "3"]
+WORKOUT_SEQUENCE = ["A", "B", "C"]
 
 # Dias de musculação: Terça=1, Quarta=2, Sábado=5 (weekday numbers)
 # Segunda e sexta são só corrida. Quinta e domingo, descanso.
@@ -18,27 +18,26 @@ _FULL_BODY_GROUPS = {
     "peito", "costas", "ombro_lat", "ombro_post", "triceps", "biceps",
     "quadriceps", "isquios", "gluteo_adutor", "core",
 }
-FULL_BODY_WORKOUTS = {"1", "2", "3"}
+FULL_BODY_WORKOUTS = {"A", "B", "C"}
 
 MUSCLE_GROUPS = {
     # Programa ativo — corpo inteiro
-    "1": set(_FULL_BODY_GROUPS),
-    "2": set(_FULL_BODY_GROUPS) | {"panturrilha"},
-    "3": set(_FULL_BODY_GROUPS) | {"trapezio"},
+    "A": set(_FULL_BODY_GROUPS),
+    "B": set(_FULL_BODY_GROUPS) | {"panturrilha"},
+    "C": set(_FULL_BODY_GROUPS) | {"trapezio"},
 }
 
 WORKOUT_LABELS = {
-    "1": "Treino 1 — Corpo inteiro · Supino Inclinado + Remada",
-    "2": "Treino 2 — Corpo inteiro · Supino Máquina + Remada V",
-    "3": "Treino 3 — Corpo inteiro · Supino Halter + Remada Unilateral",
+    "A": "Treino A — Corpo inteiro · Supino Inclinado + Remada Chest",
+    "B": "Treino B — Corpo inteiro · Supino Máquina + Remada V",
+    "C": "Treino C — Corpo inteiro · Supino Halter + Remada Unilateral",
 }
 
 # Split A–E aposentado em 25/07/2026. Mantido só para o histórico não quebrar —
 # workout_log e workout_history têm registros antigos com essas letras.
+# O ciclo novo reusa as letras A/B/C, então só D e E ficaram órfãos no
+# histórico. WORKOUT_LABELS tem prioridade em label_for().
 LEGACY_LABELS = {
-    "A": "Treino A — Peito · Ombro · Tríceps (aposentado)",
-    "B": "Treino B — Costas · Bíceps (aposentado)",
-    "C": "Treino C — Pernas (aposentado)",
     "D": "Treino D — Peito · Costas · Braços (aposentado)",
     "E": "Treino E — Glúteo · Core (aposentado)",
 }
@@ -66,7 +65,7 @@ def _ss(ss: str, pos: int, par: str) -> dict:
 
 EXERCISES = {
     # ── Programa ativo — corpo inteiro 3x/semana ───────────────────────────────
-    "1": [
+    "A": [
         {"nome": "Supino Inclinado Halter",    "series": 3, "reps": "8-10",  "peso_atual":  20.0, "peso_prog":  22.0, **_ss("SS1", 1, "Remada Chest Supported")},
         {"nome": "Remada Chest Supported",     "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS1", 2, "Supino Inclinado Halter")},
         {"nome": "Elevação Lateral Polia",     "series": 3, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS2", 1, "Puxada Alta Polia")},
@@ -77,7 +76,7 @@ EXERCISES = {
         {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0, **_ss("SS4", 2, "Leg Press 45°")},
         {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 2, "")},
     ],
-    "2": [
+    "B": [
         {"nome": "Supino Reto Máquina",        "series": 3, "reps": "10-12", "peso_atual":  40.0, "peso_prog":  45.0, **_ss("SS1", 1, "Remada Sentada c/ Pegada V")},
         {"nome": "Remada Sentada c/ Pegada V", "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS1", 2, "Supino Reto Máquina")},
         {"nome": "Crucifixo Inverso Polia",    "series": 3, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS2", 1, "Puxada Fechada Polia")},
@@ -89,7 +88,7 @@ EXERCISES = {
         {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 1, "Panturrilha Sentado")},
         {"nome": "Panturrilha Sentado",        "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("CORE", 2, "Elevação de Pernas")},
     ],
-    "3": [
+    "C": [
         {"nome": "Supino Reto Halter",         "series": 3, "reps": "10-12", "peso_atual":  20.0, "peso_prog":  22.0, **_ss("SS1", 1, "Remada Unilateral Halter")},
         {"nome": "Remada Unilateral Halter",   "series": 3, "reps": "10-12", "peso_atual":  24.0, "peso_prog":  27.0, **_ss("SS1", 2, "Supino Reto Halter")},
         {"nome": "Elevação Lateral Polia",     "series": 3, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS2", 1, "Puxada Alta Polia")},
