@@ -17,9 +17,14 @@ MUSCLE_EMOJI = {
     "peito": "🫁", "ombro_lat": "💪", "triceps": "💪",
     "costas": "🔙", "ombro_post": "💪", "biceps": "💪",
     "pernas": "🦵", "ombro_full": "💪", "trapezio": "🏔️",
+    "quadriceps": "🦵", "isquios": "🦵", "gluteo_adutor": "🍑",
+    "panturrilha": "🦶", "core": "🎯",
 }
 
 WORKOUT_DESC = {
+    "1": "Corpo inteiro · Supino Inclinado + Remada Chest",
+    "2": "Corpo inteiro · Supino Máquina + Remada V",
+    "3": "Corpo inteiro · Supino Halter + Remada Unilateral",
     "A": "Peito · Ombro Lateral · Tríceps",
     "B": "Costas · Ombro Post. · Bíceps",
     "C": "Pernas",
@@ -32,8 +37,9 @@ WORKOUT_DESC = {
 _GLOBAL_TIMER_TPL = """
 <style>
   body{background:transparent;margin:0;padding:0;font-family:-apple-system,sans-serif;}
-  .gt{text-align:center;color:#888;font-size:13px;padding:4px 0;}
-  .gt b{color:#FAFAFA;font-size:1.15rem;font-variant-numeric:tabular-nums;letter-spacing:1px;}
+  .gt{text-align:center;color:#94A3B8;font-size:12px;padding:6px 0;letter-spacing:.04em;}
+  .gt b{color:#FF8C00;font-size:1.2rem;font-variant-numeric:tabular-nums;letter-spacing:1px;
+        text-shadow:0 0 18px rgba(255,140,0,.45);}
 </style>
 <div class="gt">⏱ Treino em andamento &nbsp;—&nbsp; <b id="t">LABEL_DEFAULT</b></div>
 <script>
@@ -53,21 +59,27 @@ _REST_TIMER_TPL = """
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:transparent;font-family:-apple-system,sans-serif;padding:2px 0}
-  .lbl{color:#aaa;font-size:12px;font-weight:500;margin-bottom:6px;letter-spacing:.5px}
+  .lbl{color:#FF8C00;font-size:11px;font-weight:700;margin-bottom:8px;
+      letter-spacing:.09em;text-transform:uppercase}
   .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-  .pb{background:#1E3A5F;border:1.5px solid #4A90D9;color:#DDD;padding:7px 10px;
-      border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s}
-  .pb.sel{background:#4A90D9;color:#fff;border-color:#4A90D9}
-  .disp{font-size:2.6rem;font-weight:700;text-align:center;letter-spacing:3px;padding:8px 0;color:#FAFAFA}
-  .disp.run{color:#4CAF50}
-  .disp.done{color:#FF6B35}
+  .pb{background:rgba(255,255,255,.06);border:1px solid rgba(255,140,0,.30);color:#CBD5E1;
+      padding:7px 10px;border-radius:9px;cursor:pointer;font-size:13px;
+      -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+      transition:background-color .15s,border-color .15s}
+  .pb:hover{border-color:#FF8C00;color:#fff}
+  .pb.sel{background:rgba(255,140,0,.22);color:#FF8C00;border-color:#FF8C00}
+  .disp{font-size:2.7rem;font-weight:700;text-align:center;letter-spacing:3px;padding:10px 0;
+      color:#F1F5F9;text-shadow:0 0 24px rgba(255,140,0,.30)}
+  .disp.run{color:#FF8C00;text-shadow:0 0 26px rgba(255,140,0,.55)}
+  .disp.done{color:#22C55E;text-shadow:0 0 26px rgba(34,197,94,.55)}
   .ctrls{display:flex;gap:8px;margin-top:6px}
   .cb{flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:600}
-  .go{background:#4CAF50;color:#fff}
-  .go:disabled{background:#444;color:#888;cursor:default}
-  .rst{background:#333;color:#bbb}
+  .go{background:linear-gradient(135deg,#FF8C00,#FF6B35);color:#0a0e27;font-weight:700;
+      box-shadow:0 4px 18px rgba(255,140,0,.32)}
+  .go:disabled{background:rgba(255,255,255,.07);color:#64748B;cursor:default;box-shadow:none}
+  .rst{background:rgba(255,255,255,.07);color:#94A3B8;border:1px solid rgba(255,255,255,.12)}
 </style>
-<div class="lbl">⏱ DESCANSO ENTRE SÉRIES</div>
+<div class="lbl">REST_LABEL</div>
 <div class="presets" id="pre"></div>
 <div class="disp" id="disp">--:--</div>
 <div class="ctrls">
@@ -75,7 +87,7 @@ _REST_TIMER_TPL = """
   <button class="cb rst" onclick="rst()">↺</button>
 </div>
 <script>
-const OPTS=[{l:'30s',s:30},{l:'45s',s:45},{l:'1 min',s:60},{l:'1:30',s:90},{l:'1:45',s:105},{l:'2 min',s:120}];
+const OPTS=[{l:'20s',s:20},{l:'45s',s:45},{l:'1 min',s:60},{l:'1:15',s:75},{l:'1:30',s:90},{l:'2 min',s:120}];
 let tot=0,rem=0,tid=null,run=false,selB=null,_ac=null;
 
 if(Notification&&Notification.permission==='default')Notification.requestPermission();
@@ -87,10 +99,23 @@ document.addEventListener('touchstart',function unlock(){
 },{once:true});
 
 const pEl=document.getElementById('pre');
+const BTN={};
 OPTS.forEach(o=>{
   const b=document.createElement('button');
   b.className='pb';b.textContent=o.l;b.onclick=()=>pick(o.s,b);pEl.appendChild(b);
+  BTN[o.s]=b;
 });
+// Pré-seleciona o descanso ideal deste exercício
+function preselect(s){
+  if(!s)return;
+  let b=BTN[s];
+  if(!b){ // valor fora dos presets: cria botão dedicado
+    b=document.createElement('button');
+    b.className='pb';b.textContent=fmt(s);b.onclick=()=>pick(s,b);
+    pEl.appendChild(b);BTN[s]=b;
+  }
+  pick(s,b);
+}
 
 function pick(s,btn){
   clearInterval(tid);run=false;tot=rem=s;
@@ -136,7 +161,7 @@ function beep(){
 }
 function flashDone(){
   const d=document.getElementById('disp');let n=0;
-  const iv=setInterval(()=>{d.style.color=n%2===0?'#FF6B35':'#FAFAFA';n++;if(n>=8){clearInterval(iv);d.style.color='';}},250);
+  const iv=setInterval(()=>{d.style.color=n%2===0?'#22C55E':'#F1F5F9';n++;if(n>=8){clearInterval(iv);d.style.color='';}},250);
 }
 function vibrate(){try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}}
 function notif(){if(Notification&&Notification.permission==='granted'){try{new Notification('Treino Hub 🏋️',{body:'Descanso terminado! Próxima série.'});}catch(e){}}}
@@ -168,9 +193,19 @@ def _make_global_timer(started_at: str) -> str:
     )
 
 
-def _make_rest_timer(remaining: int = 0, is_running: bool = False) -> str:
+def _make_rest_timer(
+    remaining: int = 0,
+    is_running: bool = False,
+    default_secs: int = 60,
+    label: str = "⏱ DESCANSO ENTRE SÉRIES",
+) -> str:
+    """
+    default_secs — descanso ideal deste exercício, já pré-selecionado no timer.
+    label — texto do cabeçalho, usado para mostrar qual descanso está valendo.
+    """
     if is_running and remaining > 0:
         autostart = (
+            f"preselect({int(default_secs)});"
             f"rem={remaining};tot={remaining};run=true;"
             "document.getElementById('goBtn').disabled=false;"
             "document.getElementById('goBtn').textContent='⏸ Pausar';"
@@ -181,8 +216,12 @@ def _make_rest_timer(remaining: int = 0, is_running: bool = False) -> str:
             "beep();flashDone();vibrate();notif();}},1000);"
         )
     else:
-        autostart = ""
-    return _REST_TIMER_TPL.replace("AUTOSTART_BLOCK", autostart)
+        autostart = f"preselect({int(default_secs)});"
+    return (
+        _REST_TIMER_TPL
+        .replace("AUTOSTART_BLOCK", autostart)
+        .replace("REST_LABEL", label)
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -230,6 +269,7 @@ def _init_session(workout: str, state: dict, save_fn):
     }
     st.session_state._rest_ts = 0.0
     st.session_state._ex_rest_ts = {}
+    st.session_state._ex_rest_dur = {}
     _save_active_workout(state, save_fn)
 
 
@@ -327,6 +367,8 @@ def render_musculacao(state: dict, hevy_df, save_fn):
         st.session_state._last_ex = ""
     if "_ex_rest_ts" not in st.session_state:
         st.session_state._ex_rest_ts = {}
+    if "_ex_rest_dur" not in st.session_state:
+        st.session_state._ex_rest_dur = {}
 
     if st.session_state.active_workout is None:
         _render_picker(state, save_fn)
@@ -387,21 +429,36 @@ def _render_picker(state: dict, save_fn):
     st.markdown("---")
     st.markdown("### Qual treino hoje?")
 
-    rows = [["A", "B"], ["C", "D"], ["E"]]
-    for row in rows:
+    # Só o treino do dia (ou o próximo do ciclo) vem destacado — se todos ficam
+    # primary, nada fica em destaque.
+    suggested = today_workout or get_next_workout(state)
+
+    def _pick_row(row: list, force_secondary: bool = False):
         cols = st.columns(len(row))
         for col, letter in zip(cols, row):
             with col:
-                is_today = (letter == today_workout)
-                btn = st.button(
+                kind = "secondary"
+                if not force_secondary and letter == suggested:
+                    kind = "primary"
+                if st.button(
                     f"**{letter}** — {WORKOUT_DESC[letter]}",
                     key=f"pick_{letter}",
                     use_container_width=True,
-                    type="primary" if (is_today or not today_workout) else "secondary",
-                )
-                if btn:
+                    type=kind,
+                ):
                     _init_session(letter, state, save_fn)
                     st.rerun()
+
+    for row in [["1", "2"], ["3"]]:
+        _pick_row(row)
+
+    with st.expander("Split antigo (A–E)"):
+        st.caption(
+            "Substituído em 28/07/2026 pelo ciclo 1/2/3 de corpo inteiro. "
+            "Mantido para fechar o ciclo antigo e para o histórico."
+        )
+        for row in [["A", "B"], ["C", "D"], ["E"]]:
+            _pick_row(row, force_secondary=True)
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
     with st.expander("✅ Registrar treino já feito (sem detalhar séries)"):
@@ -516,11 +573,29 @@ def _render_session(state: dict, save_fn):
 
     st.markdown("---")
 
+    # Fallback para treinos antigos sem metadado de supersérie
     _REST_90S = {
         "Puxada Alta Polia", "Remada Sentada c/ Pegada V", "Remada Chest Supported",
         "Puxada Fechada Polia", "Remada Unilateral Halter", "Leg Press 45°",
         "Supino Inclinado Halter", "Supino Reto Halter", "Supino Reto Máquina",
     }
+
+    def _rest_of(exercise: dict) -> int:
+        """Descanso ideal depois de marcar a série deste exercício."""
+        r = exercise.get("rest")
+        if r:
+            return int(r)
+        return 90 if exercise["nome"] in _REST_90S else 60
+
+    _names = [e["nome"] for e in exercises]
+
+    def _next_name(current: str):
+        """Nome do exercício seguinte na lista, ou None se for o último."""
+        try:
+            i = _names.index(current)
+        except ValueError:
+            return None
+        return _names[i + 1] if i + 1 < len(_names) else None
 
     # Exercícios
     for ex in exercises:
@@ -539,8 +614,16 @@ def _render_session(state: dict, save_fn):
                 f"{s['weight']}kg×{s['reps']}" for s in last if s.get("done")
             )
 
-        label = f"{icon} {name}  —  {ex['series']}×{reps_range}"
+        ss_tag = f"{ex['ss']} · " if ex.get("ss") else ""
+        label = f"{icon} {ss_tag}{name}  —  {ex['series']}×{reps_range}"
         with st.expander(label, expanded=not all_done):
+            par = ex.get("par")
+            if par:
+                pos = ex.get("ss_pos", 1)
+                if pos == 1:
+                    st.caption(f"🔁 Supersérie — emenda direto em **{par}**, sem descanso longo")
+                else:
+                    st.caption(f"🔁 Supersérie — fecha o par com **{par}**, depois descansa {_rest_of(ex)}s")
             if last_hint:
                 st.caption(f"Última vez: {last_hint}")
 
@@ -590,7 +673,16 @@ def _render_session(state: dict, save_fn):
                         if st.button("○", key=f"chk_{name}_{i}"):
                             s["done"] = True
                             now_ts = time.time()
-                            st.session_state._ex_rest_ts[name] = now_ts
+                            rest_secs = _rest_of(ex)
+                            # Na última série, o descanso conta para o próximo
+                            # exercício — é lá que ele vai ser usado.
+                            target = name
+                            if all(x["done"] for x in ex_sets):
+                                nxt = _next_name(name)
+                                if nxt:
+                                    target = nxt
+                            st.session_state._ex_rest_ts[target] = now_ts
+                            st.session_state._ex_rest_dur[target] = rest_secs
                             st.session_state._rest_ts = now_ts
                             st.session_state._last_ex = name
                             # Marca timestamp da primeira série feita
@@ -600,7 +692,9 @@ def _render_session(state: dict, save_fn):
                             st.rerun()
 
             # ── Timer de descanso por exercício ──────────────────────────────
-            rest_dur = 90 if name in _REST_90S else 60
+            # A duração pode ter vindo do exercício anterior (repasse da última
+            # série); se não veio, usa a do próprio exercício.
+            rest_dur = int(st.session_state._ex_rest_dur.get(name) or _rest_of(ex))
             ex_ts = st.session_state._ex_rest_ts.get(name, 0)
             if ex_ts and ex_ts > 0:
                 elapsed_r = time.time() - ex_ts
@@ -608,10 +702,22 @@ def _render_session(state: dict, save_fn):
                 is_running = remaining > 0
                 if not is_running:
                     st.session_state._ex_rest_ts[name] = 0
+                    st.session_state._ex_rest_dur.pop(name, None)
             else:
                 remaining = 0
                 is_running = False
-            _components.html(_make_rest_timer(remaining, is_running), height=210, scrolling=False)
+            carried = name in st.session_state._ex_rest_dur and not any(
+                s["done"] for s in ex_sets
+            )
+            timer_label = (
+                f"⏱ DESCANSO DO EXERCÍCIO ANTERIOR · {rest_dur}s"
+                if carried else
+                f"⏱ DESCANSO ENTRE SÉRIES · {rest_dur}s"
+            )
+            _components.html(
+                _make_rest_timer(remaining, is_running, rest_dur, timer_label),
+                height=230, scrolling=False,
+            )
 
     st.markdown("---")
 

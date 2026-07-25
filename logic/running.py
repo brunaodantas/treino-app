@@ -1,15 +1,19 @@
 from datetime import date, timedelta
 
-RUNNING_DAYS = {0: "Segunda", 1: "Terça", 2: "Quarta", 5: "Sábado"}
+# Semana definida em 24/07/2026:
+#   Seg = só corrida · Ter/Qua = musculação + corrida · Qui = descanso
+#   Sex = só corrida · Sáb = só musculação · Dom = descanso
+RUNNING_DAYS = {0: "Segunda", 1: "Terça", 2: "Quarta", 4: "Sexta"}
 REST_DAYS = {3: "Quinta", 6: "Domingo"}
-RUNNING_OPTIONAL_DAYS = {4}  # Sexta — corrida opcional se HRV ≥ 27
+RUNNING_OPTIONAL_DAYS = set()  # nenhuma corrida é condicional — HRV descontinuado
 
+# Segunda e sexta são os dias sem musculação: recebem as corridas mais longas.
+# Terça e quarta dividem o dia com a musculação: corrida curta.
 DAY_RUN_TYPE = {
-    0: {"tipo": "Z1 ativa", "duracao": "20 min", "descricao": "Corrida Z1 — 20 min, FC ≤ 130bpm"},
-    1: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda)"},
-    2: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda)"},
-    4: {"tipo": "leve opcional", "duracao": "20 min", "descricao": "Corrida leve opcional — só se HRV ≥ 27"},
-    5: {"tipo": "esteira intervalada", "duracao": "25-30 min", "descricao": "Corrida esteira intervalada (25-30 min)"},
+    0: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda) — dia sem musculação"},
+    1: {"tipo": "Z1 curta", "duracao": "20 min", "descricao": "Corrida Z1 curta — 20 min, FC ≤ 130bpm (dia de musculação)"},
+    2: {"tipo": "Z1 curta", "duracao": "20 min", "descricao": "Corrida Z1 curta — 20 min, FC ≤ 130bpm (dia de musculação)"},
+    4: {"tipo": "esteira intervalada", "duracao": "30-40 min", "descricao": "Corrida esteira intervalada — dia sem musculação"},
 }
 
 EQUIPMENT_REMINDER = "🛡️ **Equipamento obrigatório:** Palmilha plana de Gel PU — EU 41-42 / 260mm"

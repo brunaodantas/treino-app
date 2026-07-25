@@ -15,39 +15,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
-<style>
-/* Esconde barra superior e rodapé do Streamlit */
-header[data-testid="stHeader"] { display: none; }
-footer { display: none; }
-#MainMenu { display: none; }
-/* Botões maiores para toque */
-.stButton > button {
-    min-height: 3rem;
-    font-size: 1rem;
-    border-radius: 10px;
-}
-/* Inputs numéricos maiores */
-.stNumberInput input {
-    font-size: 1.1rem;
-    height: 2.8rem;
-}
-/* Tabs roláveis em tela pequena */
-.stTabs [data-baseweb="tab-list"] {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-}
-/* Expanders com padding confortável */
-.streamlit-expanderHeader {
-    font-size: 1rem;
-    padding: 0.6rem 0;
-}
-/* Remove padding lateral excessivo no mobile */
-@media (max-width: 768px) {
-    .block-container { padding: 1rem 0.75rem; }
-}
-</style>
-""", unsafe_allow_html=True)
+from views.theme import inject_theme
+
+inject_theme(st)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
