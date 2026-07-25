@@ -16,6 +16,28 @@ Repositório: https://github.com/brunaodantas/treino-app
 - `views/dashboard.py` — status do dia (informativo, sem bloqueio por dia)
 - `views/analytics.py` — gráficos de volume e steps
 - `logic/` — schedule, running, adaptation
+- `views/theme.py` — tema glassmorphism (dark deep + laranja), injetado uma vez no app.py
+
+## Programa de musculação (desde 25/07/2026)
+
+Ciclo fixo de 3 treinos de **corpo inteiro** (`"1"`, `"2"`, `"3"`), Ter/Qua/Sáb.
+Substituiu o split A/B/C/D/E, que a 3 sessões por semana treinava cada grupo
+0,75x/semana. Agora cada músculo é treinado 3x/semana.
+
+- Superséries de antagonistas: cada exercício tem `ss`, `ss_pos`, `par` e `rest`.
+  Primeiro do par descansa 20s (só trocar de aparelho); segundo descansa o valor
+  do par (`REST_PAIR_2`: SS1 90s · SS2 75s · SS3 60s · SS4 75s · CORE 45s).
+- Ao marcar a **última série** de um exercício, o descanso é atribuído ao
+  **próximo** exercício (`_ex_rest_ts` / `_ex_rest_dur`), senão o timer morria
+  junto com o card que colapsa.
+- `check_72h_conflict` não aplica a regra de 72h por grupo a treinos de corpo
+  inteiro — a sobreposição é intencional. Alerta só se a mesma sessão repetir
+  em menos de 20h.
+- `LEGACY_LABELS` + `label_for()` existem só para o histórico: `workout_log` tem
+  registros antigos com letras A–E. Nunca indexar `WORKOUT_LABELS[...]` ou
+  `EXERCISES[...]` com valor vindo do histórico.
+- `_reps_num()` / `_reps_max()` extraem números do campo `reps`, que aceita
+  `"10-12"`, `"8"` e `"40s"` (Prancha). `int("40s")` derrubava a aba inteira.
 - `parsers/strava_api.py` — OAuth + create_activity
 - `data/` — strava_cache.json (781 atividades) e health_cache.json (Apple Health)
 
@@ -53,7 +75,7 @@ Repositório: https://github.com/brunaodantas/treino-app
 ### Dashboard sem travamento por dia (views/dashboard.py)
 - Removido o early return que bloqueava acesso em dias de descanso
 - Dias de descanso e corrida aparecem como **informativos** (st.info), não como bloqueios
-- Usuário pode selecionar qualquer treino (A–E) a qualquer dia da semana
+- Usuário pode selecionar qualquer treino do ciclo (1/2/3) a qualquer dia da semana
 - "Próximo na fila" é sugestão, não obrigação
 
 ### Strava — correção do escopo OAuth (parsers/strava_api.py)

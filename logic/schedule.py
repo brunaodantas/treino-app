@@ -25,35 +25,34 @@ MUSCLE_GROUPS = {
     "1": set(_FULL_BODY_GROUPS),
     "2": set(_FULL_BODY_GROUPS) | {"panturrilha"},
     "3": set(_FULL_BODY_GROUPS) | {"trapezio"},
-    # Split antigo (A–E) — mantido para seleção manual e histórico
-    "A": {"peito", "ombro_lat", "triceps"},
-    "B": {"costas", "ombro_post", "biceps"},
-    "C": {"pernas"},
-    "D": {"peito", "costas", "triceps", "biceps"},
-    "E": {"ombro_full", "trapezio", "triceps", "biceps"},
 }
 
 WORKOUT_LABELS = {
     "1": "Treino 1 — Corpo inteiro · Supino Inclinado + Remada",
     "2": "Treino 2 — Corpo inteiro · Supino Máquina + Remada V",
     "3": "Treino 3 — Corpo inteiro · Supino Halter + Remada Unilateral",
-    "A": "Treino A — Peito · Ombro · Tríceps (antigo)",
-    "B": "Treino B — Costas · Bíceps (antigo)",
-    "C": "Treino C — Pernas (antigo)",
-    "D": "Treino D — Peito · Costas · Braços (antigo)",
-    "E": "Treino E — Glúteo · Core (bônus, antigo)",
 }
+
+# Split A–E aposentado em 25/07/2026. Mantido só para o histórico não quebrar —
+# workout_log e workout_history têm registros antigos com essas letras.
+LEGACY_LABELS = {
+    "A": "Treino A — Peito · Ombro · Tríceps (aposentado)",
+    "B": "Treino B — Costas · Bíceps (aposentado)",
+    "C": "Treino C — Pernas (aposentado)",
+    "D": "Treino D — Peito · Costas · Braços (aposentado)",
+    "E": "Treino E — Glúteo · Core (aposentado)",
+}
+
+
+def label_for(workout: str) -> str:
+    """Rótulo de um treino, atual ou aposentado. Nunca levanta KeyError."""
+    return WORKOUT_LABELS.get(workout) or LEGACY_LABELS.get(workout, f"Treino {workout}")
 
 # Descanso ideal DEPOIS de marcar a série, em segundos.
 # Primeiro exercício do par = só o tempo de trocar de aparelho.
 # Segundo exercício do par = o descanso real do par.
 REST_PAIR_2 = {"SS1": 90, "SS2": 75, "SS3": 60, "SS4": 75, "CORE": 45}
 REST_PAIR_1 = 20
-
-EXERCISES_C_REDUCED = [
-    {"nome": "Leg Press 45°",          "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
-    {"nome": "Adução Quadril Máquina", "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
-]
 
 def _ss(ss: str, pos: int, par: str) -> dict:
     """Metadados de supersérie: grupo, posição no par, parceiro e descanso."""
@@ -101,52 +100,6 @@ EXERCISES = {
         {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("SS4", 2, "Cadeira Flexora")},
         {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 1, "Encolhimento Halter")},
         {"nome": "Encolhimento Halter",        "series": 3, "reps": "12-15", "peso_atual":  24.0, "peso_prog":  27.0, **_ss("CORE", 2, "Rodinha (Ab Wheel)")},
-    ],
-    # ── Split antigo (A–E) — seleção manual ────────────────────────────────────
-    "A": [
-        {"nome": "Supino Inclinado Halter",    "series": 3, "reps": "8-10",  "peso_atual": 20.0, "peso_prog": 22.0},
-        {"nome": "Supino Reto Halter",         "series": 3, "reps": "10-12", "peso_atual": 20.0, "peso_prog": 22.0},
-        {"nome": "Crossover Polia",            "series": 3, "reps": "12-15", "peso_atual": 13.0, "peso_prog": 15.0},
-        {"nome": "Elevação Lateral Polia",     "series": 3, "reps": "12-15", "peso_atual":  9.0, "peso_prog": 11.0},
-        {"nome": "Tríceps Corda Barra",        "series": 3, "reps": "12-15", "peso_atual": 50.0, "peso_prog": 55.0},
-        {"nome": "Tríceps Francês Polia",      "series": 3, "reps": "10-12", "peso_atual": 25.0, "peso_prog": 30.0},
-        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0},
-        {"nome": "Abdominal Máquina",          "series": 3, "reps": "15",    "peso_atual":  0.0, "peso_prog":  0.0},
-    ],
-    "B": [
-        {"nome": "Puxada Alta Polia",          "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0},
-        {"nome": "Remada Sentada c/ Pegada V", "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0},
-        {"nome": "Remada Chest Supported",     "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0},
-        {"nome": "Rosca Direta Polia",         "series": 3, "reps": "12-15", "peso_atual": 25.0, "peso_prog": 26.0},
-        {"nome": "Rosca Scott Máquina",        "series": 3, "reps": "10-12", "peso_atual": 25.0, "peso_prog": 27.0},
-        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0},
-    ],
-    "C": [
-        {"nome": "Leg Press 45°",              "series": 4, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0},
-        {"nome": "Cadeira Extensora",          "series": 3, "reps": "12-15", "peso_atual": 63.0,  "peso_prog": 70.0},
-        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual": 41.0,  "peso_prog": 46.0},
-        {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual": 50.0,  "peso_prog": 55.0},
-        {"nome": "Panturrilha Sentado",        "series": 3, "reps": "15-20", "peso_atual": 50.0,  "peso_prog": 55.0},
-        {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":  0.0,  "peso_prog":  0.0},
-        {"nome": "Abdominal Máquina",          "series": 3, "reps": "15",    "peso_atual":  0.0,  "peso_prog":  0.0},
-    ],
-    # D reordenado em superséries — última sessão do split antigo (25/07/2026)
-    "D": [
-        {"nome": "Supino Reto Máquina",        "series": 3, "reps": "10-12", "peso_atual": 40.0, "peso_prog": 45.0, **_ss("SS1", 1, "Puxada Fechada Polia")},
-        {"nome": "Puxada Fechada Polia",       "series": 3, "reps": "10-12", "peso_atual": 45.0, "peso_prog": 50.0, **_ss("SS1", 2, "Supino Reto Máquina")},
-        {"nome": "Crossover Polia",            "series": 3, "reps": "12-15", "peso_atual": 13.0, "peso_prog": 15.0, **_ss("SS2", 1, "Remada Unilateral Halter")},
-        {"nome": "Remada Unilateral Halter",   "series": 3, "reps": "10-12", "peso_atual": 24.0, "peso_prog": 27.0, **_ss("SS2", 2, "Crossover Polia")},
-        {"nome": "Tríceps Mergulho Máquina",   "series": 3, "reps": "10-12", "peso_atual": 70.0, "peso_prog": 80.0, **_ss("SS3", 1, "Rosca Martelo Halter")},
-        {"nome": "Rosca Martelo Halter",       "series": 3, "reps": "10-12", "peso_atual": 14.0, "peso_prog": 16.0, **_ss("SS3", 2, "Tríceps Mergulho Máquina")},
-        {"nome": "Prancha",                    "series": 3, "reps": "40s",   "peso_atual":  0.0, "peso_prog":  0.0, **_ss("CORE", 1, "Rodinha (Ab Wheel)")},
-        {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":  0.0, "peso_prog":  0.0, **_ss("CORE", 2, "Prancha")},
-    ],
-    "E": [
-        {"nome": "Abdução Quadril Máquina",    "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
-        {"nome": "Adução Quadril Máquina",     "series": 3, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0},
-        {"nome": "Elevação de Pernas",         "series": 3, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0},
-        {"nome": "Rodinha (Ab Wheel)",         "series": 3, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0},
-        {"nome": "Prancha",                    "series": 3, "reps": "45s",   "peso_atual":   0.0, "peso_prog":   0.0},
     ],
 }
 

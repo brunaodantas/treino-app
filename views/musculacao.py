@@ -1,9 +1,10 @@
+import re
 import time
 import streamlit as st
 import streamlit.components.v1 as _components
 from datetime import datetime
 from logic.schedule import (
-    EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict,
+    EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict, label_for,
     get_scheduled_workout, get_next_workout, mark_workout_done, WORKOUT_SEQUENCE,
 )
 from logic.adaptation import (
@@ -16,7 +17,7 @@ from utils import now_br
 MUSCLE_EMOJI = {
     "peito": "🫁", "ombro_lat": "💪", "triceps": "💪",
     "costas": "🔙", "ombro_post": "💪", "biceps": "💪",
-    "pernas": "🦵", "ombro_full": "💪", "trapezio": "🏔️",
+    "trapezio": "🏔️",
     "quadriceps": "🦵", "isquios": "🦵", "gluteo_adutor": "🍑",
     "panturrilha": "🦶", "core": "🎯",
 }
@@ -25,11 +26,6 @@ WORKOUT_DESC = {
     "1": "Corpo inteiro · Supino Inclinado + Remada Chest",
     "2": "Corpo inteiro · Supino Máquina + Remada V",
     "3": "Corpo inteiro · Supino Halter + Remada Unilateral",
-    "A": "Peito · Ombro Lateral · Tríceps",
-    "B": "Costas · Ombro Post. · Bíceps",
-    "C": "Pernas",
-    "D": "Peito · Costas · Braços",
-    "E": "Glúteo · Core (bônus)",
 }
 
 # ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
@@ -242,18 +238,33 @@ def _save_active_workout(state: dict, save_fn):
     save_fn(state)
 
 
+def _reps_num(reps, fallback: int = 10) -> int:
+    """
+    Primeiro número de um campo de reps. Aceita "10-12", "8" e "40s" (Prancha,
+    que é tempo em segundos). Sem isso, int("40s") estoura a aba inteira.
+    """
+    m = re.search(r"\d+", str(reps or ""))
+    return int(m.group()) if m else fallback
+
+
+def _reps_max(reps, fallback: int = 10) -> int:
+    """Último número do campo de reps — usado pra sugerir progressão."""
+    nums = re.findall(r"\d+", str(reps or ""))
+    return int(nums[-1]) if nums else fallback
+
+
 def _init_session(workout: str, state: dict, save_fn):
     sets = {}
-    for ex in EXERCISES[workout]:
+    for ex in EXERCISES.get(workout, []):
         name = ex["nome"]
         last = _get_last_sets(name, state)
         default_w = float(ex.get("peso_atual", 0))
-        default_r = int(ex.get("reps", "10").split("-")[0])
+        default_r = _reps_num(ex.get("reps"))
         ex_sets = []
         for i in range(ex["series"]):
             if last and i < len(last):
                 w = float(last[i].get("weight", default_w))
-                r = int(last[i].get("reps", default_r))
+                r = _reps_num(last[i].get("reps"), default_r)
             else:
                 w, r = default_w, default_r
             ex_sets.append({"weight": w, "reps": r, "done": False})
@@ -328,7 +339,7 @@ def _finish_workout(state: dict, save_fn):
         if token:
             elapsed_min = elapsed // 60
             lines = [
-                f"Treino {workout} — {WORKOUT_DESC[workout]}",
+                f"Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}",
                 f"Duração: {elapsed_min}min | Volume: {volume:,.0f} kg",
                 "",
             ]
@@ -433,15 +444,13 @@ def _render_picker(state: dict, save_fn):
     # primary, nada fica em destaque.
     suggested = today_workout or get_next_workout(state)
 
-    def _pick_row(row: list, force_secondary: bool = False):
+    def _pick_row(row: list):
         cols = st.columns(len(row))
         for col, letter in zip(cols, row):
             with col:
-                kind = "secondary"
-                if not force_secondary and letter == suggested:
-                    kind = "primary"
+                kind = "primary" if letter == suggested else "secondary"
                 if st.button(
-                    f"**{letter}** — {WORKOUT_DESC[letter]}",
+                    f"**{letter}** — {WORKOUT_DESC.get(letter, letter)}",
                     key=f"pick_{letter}",
                     use_container_width=True,
                     type=kind,
@@ -452,19 +461,12 @@ def _render_picker(state: dict, save_fn):
     for row in [["1", "2"], ["3"]]:
         _pick_row(row)
 
-    with st.expander("Split antigo (A–E)"):
-        st.caption(
-            "Substituído em 28/07/2026 pelo ciclo 1/2/3 de corpo inteiro. "
-            "Mantido para fechar o ciclo antigo e para o histórico."
-        )
-        for row in [["A", "B"], ["C", "D"], ["E"]]:
-            _pick_row(row, force_secondary=True)
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
     with st.expander("✅ Registrar treino já feito (sem detalhar séries)"):
         quick = st.selectbox(
             "Treino", list(WORKOUT_LABELS.keys()),
-            format_func=lambda w: WORKOUT_LABELS.get(w, w),
+            format_func=label_for,
             key="quick_mark_sel",
         )
         q_conflict, q_msg = check_72h_conflict(state, quick)
@@ -539,7 +541,18 @@ def _render_weight_history(state: dict):
 def _render_session(state: dict, save_fn):
     session = st.session_state.active_workout
     workout = session["workout"]
-    exercises = EXERCISES[workout]
+    exercises = EXERCISES.get(workout)
+    if exercises is None:
+        # Sessão salva de um treino aposentado (split A–E). Descarta em vez de
+        # estourar KeyError e derrubar a aba.
+        st.warning(
+            f"O Treino {workout} foi aposentado. Sessão antiga descartada — "
+            "escolha um treino do ciclo atual."
+        )
+        st.session_state.active_workout = None
+        state.pop("_active_workout", None)
+        save_fn(state)
+        return
     started_at = session.get("started_at", now_br().isoformat())
 
     # Wake lock
@@ -550,7 +563,7 @@ def _render_session(state: dict, save_fn):
     # Header
     col_title, col_cancel = st.columns([4, 1])
     with col_title:
-        st.markdown(f"### 🏋️ Treino {workout} — {WORKOUT_DESC[workout]}")
+        st.markdown(f"### 🏋️ Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}")
     with col_cancel:
         if st.button("✕ Sair", help="Cancela sem salvar"):
             st.session_state.active_workout = None
@@ -629,7 +642,7 @@ def _render_session(state: dict, save_fn):
 
             # Sugestão de progressão
             if all_done and peso_prog:
-                reps_max = int(reps_range.split("-")[-1])
+                reps_max = _reps_max(reps_range)
                 all_at_max = all(s.get("reps", 0) >= reps_max for s in ex_sets if s.get("done"))
                 if all_at_max:
                     st.success(f"🚀 Progressão sugerida: **{peso_prog:g} kg** na próxima sessão")
