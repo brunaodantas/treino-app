@@ -253,9 +253,23 @@ def _reps_max(reps, fallback: int = 10) -> int:
     return int(nums[-1]) if nums else fallback
 
 
-def _init_session(workout: str, state: dict, save_fn):
+# Blocos que compõem a sessão curta: o par principal (empurrar + puxar),
+# a perna e o core. Ficam de fora ombro/costas vertical (SS2) e braço (SS3) —
+# braço já recebe muito volume indireto nos supinos e remadas.
+SHORT_BLOCKS = ("SS1", "SS4", "CORE")
+
+
+def _exercises_for(workout: str, curta: bool = False) -> list:
+    """Exercícios de um treino. Em modo curto, só SS1 + SS4 + CORE (~22 min)."""
+    exs = EXERCISES.get(workout, [])
+    if not curta:
+        return exs
+    return [e for e in exs if e.get("ss") in SHORT_BLOCKS]
+
+
+def _init_session(workout: str, state: dict, save_fn, curta: bool = False):
     sets = {}
-    for ex in EXERCISES.get(workout, []):
+    for ex in _exercises_for(workout, curta):
         name = ex["nome"]
         last = _get_last_sets(name, state)
         default_w = float(ex.get("peso_atual", 0))
@@ -274,6 +288,7 @@ def _init_session(workout: str, state: dict, save_fn):
 
     st.session_state.active_workout = {
         "workout": workout,
+        "curta": curta,
         "started_at": now_br().isoformat(),
         "first_set_ts": None,
         "sets": sets,
@@ -438,22 +453,32 @@ def _render_picker(state: dict, save_fn):
 
     # Todos os botões em laranja. O app não prescreve treino do dia — Bruno
     # escolhe (pedido de 25/07/2026).
-    def _pick_row(row: list):
-        cols = st.columns(len(row))
-        for col, letter in zip(cols, row):
-            with col:
-                kind = "primary"
-                if st.button(
-                    f"**{letter}** — {WORKOUT_DESC.get(letter, letter)}",
-                    key=f"pick_{letter}",
-                    use_container_width=True,
-                    type=kind,
-                ):
-                    _init_session(letter, state, save_fn)
-                    st.rerun()
+    def _pick_workout(letter: str):
+        """Treino completo (largo) + versão curta (estreita), na mesma linha."""
+        col_full, col_short = st.columns([4, 1])
+        with col_full:
+            if st.button(
+                f"**{letter}** — {WORKOUT_DESC.get(letter, letter)}",
+                key=f"pick_{letter}",
+                use_container_width=True,
+                type="primary",
+            ):
+                _init_session(letter, state, save_fn)
+                st.rerun()
+        with col_short:
+            n = len(_exercises_for(letter, curta=True))
+            if st.button(
+                "⚡ curta",
+                key=f"pick_short_{letter}",
+                use_container_width=True,
+                help=f"Versão de ~22 min — {n} exercícios: par principal, perna e core",
+            ):
+                _init_session(letter, state, save_fn, curta=True)
+                st.rerun()
 
-    for row in [["A", "B"], ["C"]]:
-        _pick_row(row)
+    for letter in ("A", "B", "C"):
+        _pick_workout(letter)
+    st.caption("⚡ curta = par principal + perna + core, ~22 min. Conta como o treino do ciclo.")
 
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
@@ -535,7 +560,8 @@ def _render_weight_history(state: dict):
 def _render_session(state: dict, save_fn):
     session = st.session_state.active_workout
     workout = session["workout"]
-    exercises = EXERCISES.get(workout)
+    curta = bool(session.get("curta"))
+    exercises = _exercises_for(workout, curta) if workout in EXERCISES else None
     if exercises is None:
         # Sessão salva de um treino aposentado (split A–E). Descarta em vez de
         # estourar KeyError e derrubar a aba.
@@ -557,7 +583,8 @@ def _render_session(state: dict, save_fn):
     # Header
     col_title, col_cancel = st.columns([4, 1])
     with col_title:
-        st.markdown(f"### 🏋️ Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}")
+        _sufixo = "  ·  ⚡ curta" if curta else ""
+        st.markdown(f"### 🏋️ Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}{_sufixo}")
     with col_cancel:
         if st.button("✕ Sair", help="Cancela sem salvar"):
             st.session_state.active_workout = None
