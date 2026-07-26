@@ -5,10 +5,13 @@ META = {"kcal": 2100, "prot": 188, "carb": 180, "gord": 60}
 
 ALIMENTOS = {
     "Vitamina base — 1 porção (leite+whey+achoc+creatina)": (403, 47, 30, 13, 1),
+    "Churrasco misto — porção 200g":                        (400, 40, 0,  26, 1),
     "Whey Protein (40g)":         (160, 36, 4,  2,  40),
     "Whey Protein (60g)":         (240, 54, 6,  3,  60),
     "Frango peito (100g)":        (165, 31, 0,  4,  100),
     "Fígado de boi (100g)":       (135, 21, 4,  4,  100),
+    "Acém cozido (100g)":         (220, 19, 0,  15, 100),
+    "Ponta de agulha cozida (100g)":(250,18, 0,  19, 100),
     "Ovo inteiro (~50g)":         (70,  6,  0,  5,  50),
     "Iogurte Grego (100g)":       (65,  9,  4,  3,  100),
     "Iogurte Grego (200g)":       (130, 18, 8,  6,  200),
@@ -37,10 +40,11 @@ ALIMENTOS = {
 }
 
 CATEGORIAS = {
-    "⚡ Combos":    ["Vitamina base — 1 porção (leite+whey+achoc+creatina)"],
+    "⚡ Combos":    ["Vitamina base — 1 porção (leite+whey+achoc+creatina)",
+                    "Churrasco misto — porção 200g"],
     "🥩 Proteínas": ["Whey Protein (40g)", "Whey Protein (60g)", "Frango peito (100g)",
-                     "Fígado de boi (100g)", "Ovo inteiro (~50g)",
-                     "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
+                     "Fígado de boi (100g)", "Acém cozido (100g)", "Ponta de agulha cozida (100g)",
+                     "Ovo inteiro (~50g)", "Iogurte Grego (100g)", "Iogurte Grego (200g)"],
     "🍚 Carbs":     ["Arroz branco cozido (100g)", "Feijão cozido (100g)", "Macarrão cozido (100g)",
                      "Aveia (30g)", "Banana média (~100g)", "Banana prata (~80g)", "Mamão (150g)",
                      "Abacate (100g)", "Pão de forma (fatia ~25g)",
