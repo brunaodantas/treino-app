@@ -44,12 +44,22 @@ def fetch_wellness(days: int = 7) -> list[dict]:
     oldest = str(date.today() - timedelta(days=days))
     newest = str(date.today())
 
-    resp = requests.get(
-        f"{INTERVALS_BASE}/athlete/{athlete_id}/wellness",
-        auth=_auth(api_key),
-        params={"oldest": oldest, "newest": newest},
-        timeout=10,
-    )
+    # Streamlit Cloud costuma levar mais de 10s nessa chamada; 2 tentativas
+    resp = None
+    last_err = None
+    for _attempt in range(2):
+        try:
+            resp = requests.get(
+                f"{INTERVALS_BASE}/athlete/{athlete_id}/wellness",
+                auth=_auth(api_key),
+                params={"oldest": oldest, "newest": newest},
+                timeout=45,
+            )
+            break
+        except requests.exceptions.Timeout as e:
+            last_err = e
+    if resp is None:
+        raise RuntimeError(f"Intervals API timeout apos 2 tentativas de 45s") from last_err
     if resp.status_code != 200:
         raise RuntimeError(f"Intervals API {resp.status_code}: {resp.text[:200]}")
 
