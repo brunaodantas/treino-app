@@ -51,7 +51,7 @@ def fetch_wellness(days: int = 7) -> list[dict]:
         timeout=10,
     )
     if resp.status_code != 200:
-        return []
+        raise RuntimeError(f"Intervals API {resp.status_code}: {resp.text[:200]}")
 
     results = []
     for entry in resp.json():
