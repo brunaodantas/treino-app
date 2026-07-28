@@ -278,7 +278,9 @@ if "intervals_data" not in st.session_state:
             if _wd:
                 _iv_status = {"ok": True, "count": len(_wd), "last": _wd[0].get("data")}
             else:
-                _iv_status = {"ok": False, "error": "conectado, mas a API não retornou dados"}
+                from parsers.intervals import _get_credentials as _iv_creds
+                _aid, _ = _iv_creds()
+                _iv_status = {"ok": False, "error": f"API retornou vazio (athlete: {_aid})"}
         else:
             st.session_state.intervals_data = None
     except Exception as _e:
