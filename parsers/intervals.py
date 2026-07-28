@@ -35,8 +35,38 @@ def _auth(api_key: str):
     return ("API_KEY", api_key)
 
 
-def fetch_wellness(days: int = 7) -> list[dict]:
-    """Retorna dados de wellness (HRV, FC repouso, sono, peso) dos últimos N dias."""
+import json
+import os
+
+_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "intervals_cache.json",
+)
+
+
+def _read_cache() -> list[dict]:
+    try:
+        with open(_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _write_cache(data: list[dict]):
+    try:
+        os.makedirs(os.path.dirname(_CACHE_PATH), exist_ok=True)
+        with open(_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def fetch_wellness(days: int = 7, timeout: int = 8) -> list[dict]:
+    """Retorna dados de wellness (HRV, FC repouso, sono, peso) dos últimos N dias.
+
+    Em caso de timeout devolve o último resultado em cache — o boot do app não
+    pode ficar bloqueado esperando a API.
+    """
     athlete_id, api_key = _get_credentials()
     if not athlete_id or not api_key:
         return []
@@ -44,22 +74,18 @@ def fetch_wellness(days: int = 7) -> list[dict]:
     oldest = str(date.today() - timedelta(days=days))
     newest = str(date.today())
 
-    # Streamlit Cloud costuma levar mais de 10s nessa chamada; 2 tentativas
-    resp = None
-    last_err = None
-    for _attempt in range(2):
-        try:
-            resp = requests.get(
-                f"{INTERVALS_BASE}/athlete/{athlete_id}/wellness",
-                auth=_auth(api_key),
-                params={"oldest": oldest, "newest": newest},
-                timeout=45,
-            )
-            break
-        except requests.exceptions.Timeout as e:
-            last_err = e
-    if resp is None:
-        raise RuntimeError(f"Intervals API timeout apos 2 tentativas de 45s") from last_err
+    try:
+        resp = requests.get(
+            f"{INTERVALS_BASE}/athlete/{athlete_id}/wellness",
+            auth=_auth(api_key),
+            params={"oldest": oldest, "newest": newest},
+            timeout=timeout,
+        )
+    except requests.exceptions.Timeout:
+        cached = _read_cache()
+        if cached:
+            return cached
+        raise RuntimeError(f"Intervals API timeout ({timeout}s) e sem cache local")
     if resp.status_code != 200:
         raise RuntimeError(f"Intervals API {resp.status_code}: {resp.text[:200]}")
 
@@ -79,7 +105,10 @@ def fetch_wellness(days: int = 7) -> list[dict]:
             "atl": entry.get("atl"),   # fadiga
             "tsb": entry.get("tsb"),   # frescor (form)
         })
-    return sorted(results, key=lambda x: x["data"], reverse=True)
+    results = sorted(results, key=lambda x: x["data"], reverse=True)
+    if results:
+        _write_cache(results)
+    return results
 
 
 def fetch_today_form() -> dict | None:

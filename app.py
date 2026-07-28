@@ -540,7 +540,21 @@ try {{
         col_sync_iv, col_disc_iv = st.columns(2)
         with col_sync_iv:
             if st.button("🔄 Sincronizar Intervals", use_container_width=True):
-                st.session_state.pop("intervals_data", None)
+                # Sync manual pode esperar mais que o boot
+                try:
+                    from parsers.intervals import fetch_wellness as _fw
+                    with st.spinner("Buscando no Intervals.icu..."):
+                        _wd_manual = _fw(days=14, timeout=45)
+                    st.session_state.intervals_data = _wd_manual
+                    st.session_state._iv_status = (
+                        {"ok": True, "count": len(_wd_manual), "last": _wd_manual[0].get("data")}
+                        if _wd_manual else
+                        {"ok": False, "error": "conectado, mas a API não retornou dados"}
+                    )
+                except Exception as _e:
+                    st.session_state._iv_status = {
+                        "ok": False, "error": f"falha ao acessar o Intervals ({type(_e).__name__})"
+                    }
                 st.rerun()
         with col_disc_iv:
             if st.button("Desconectar Intervals", use_container_width=True):
