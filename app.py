@@ -542,6 +542,17 @@ try {{
         col_sync_iv, col_disc_iv = st.columns(2)
         with col_sync_iv:
             if st.button("🔄 Sincronizar Intervals", use_container_width=True):
+                import requests as _req
+                from parsers.intervals import _get_credentials as _gc
+                from datetime import date as _d, timedelta as _td
+                _aid, _key = _gc()
+                _r = _req.get(
+                    f"https://intervals.icu/api/v1/athlete/{_aid}/wellness",
+                    auth=("API_KEY", _key or ""),
+                    params={"oldest": str(_d.today() - _td(days=7)), "newest": str(_d.today())},
+                    timeout=10,
+                )
+                st.info(f"HTTP {_r.status_code} | athlete: {_aid} | bytes: {len(_r.content)} | preview: {_r.text[:120]}")
                 st.session_state.pop("intervals_data", None)
                 st.rerun()
         with col_disc_iv:
