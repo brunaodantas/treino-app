@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
 from datetime import date
-from utils import today_br
+from utils import today_br, now_br
 from views.recuperacao import (
     _merge_daily, _render_trends, _recovery_score, _hr_status, _sleep_status,
 )
@@ -28,9 +28,15 @@ FRASES_MOTIVACIONAIS = [
 ]
 
 
+FRASE_PERIODO_HORAS = 3  # troca a cada 3h — ~6-8 frases diferentes por dia
+
+
 def _frase_do_dia() -> str:
-    """Frase fixa para o dia — muda diariamente, sem repetir a mesma toda hora."""
-    idx = date.today().toordinal() % len(FRASES_MOTIVACIONAIS)
+    """Frase por período do dia (bloco de 3h). Determinística, não repete
+    a mesma toda vez que a página recarrega dentro do mesmo bloco."""
+    agora = now_br()
+    bloco = agora.hour // FRASE_PERIODO_HORAS
+    idx = (date.today().toordinal() * (24 // FRASE_PERIODO_HORAS) + bloco) % len(FRASES_MOTIVACIONAIS)
     return FRASES_MOTIVACIONAIS[idx]
 
 
