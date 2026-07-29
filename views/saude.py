@@ -12,6 +12,27 @@ from views.recuperacao import (
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "health_log.json"
 
+FRASES_MOTIVACIONAIS = [
+    "A base que você constrói agora é o que sustenta a carga daqui a 3 meses.",
+    "Constância vence intensidade. Aparecer de novo é o treino mais importante.",
+    "Você não precisa se destruir hoje para evoluir — precisa voltar amanhã.",
+    "O descanso de hoje é o que permite o treino pesado de depois.",
+    "Progresso não é retornar ao 100% todo dia. É não parar de voltar.",
+    "Cada sessão concluída é um voto de confiança no seu objetivo.",
+    "Menos volume com boa execução constrói mais do que volume alto malfeito.",
+    "O corpo se adapta ao que você repete, não ao que você faz uma vez só.",
+    "Sair da academia com vontade de voltar é sinal de que fez certo.",
+    "Disciplina é treinar mesmo no dia em que a vontade é zero.",
+    "Cada treino é depósito. Consistência é a única forma de composição de juros no corpo.",
+    "Você já fez o mais difícil: parar de não fazer nada.",
+]
+
+
+def _frase_do_dia() -> str:
+    """Frase fixa para o dia — muda diariamente, sem repetir a mesma toda hora."""
+    idx = date.today().toordinal() % len(FRASES_MOTIVACIONAIS)
+    return FRASES_MOTIVACIONAIS[idx]
+
 
 def _load_log() -> pd.DataFrame:
     if not DATA_PATH.exists():
@@ -214,6 +235,8 @@ def render_saude(state: dict = None, save_fn=None,
     with col_ref:
         if st.button("🔄", help="Recarregar", key="refresh_saude"):
             _components.html("<script>window.parent.location.reload();</script>", height=0)
+
+    st.caption(f"💬 {_frase_do_dia()}")
 
     today = today_br()
     ref_date = today

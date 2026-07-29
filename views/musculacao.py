@@ -146,12 +146,17 @@ function rst(){clearInterval(tid);run=false;rem=tot;render();document.getElement
 function beep(){
   try{
     if(!_ac)_ac=new AudioContext();
-    function play(){
+    function tone(freq,start,dur){
       const o=_ac.createOscillator(),g=_ac.createGain();
       o.connect(g);g.connect(_ac.destination);
-      o.frequency.value=880;g.gain.value=0.4;
-      o.start();g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.8);
-      o.stop(_ac.currentTime+0.8);
+      o.frequency.value=freq;g.gain.value=0.5;
+      o.start(_ac.currentTime+start);
+      g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+start+dur);
+      o.stop(_ac.currentTime+start+dur);
+    }
+    function play(){
+      // Notificação em 3 toques ascendentes — mais perceptível que um beep só
+      tone(880,0,0.15);tone(880,0.2,0.15);tone(1100,0.4,0.35);
     }
     if(_ac.state==='suspended')_ac.resume().then(play);else play();
   }catch(e){}
