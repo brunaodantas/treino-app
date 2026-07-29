@@ -256,7 +256,7 @@ def _reps_max(reps, fallback: int = 10) -> int:
 # Blocos que compõem a sessão curta: o par principal (empurrar + puxar),
 # a perna e o core. Ficam de fora ombro/costas vertical (SS2) e braço (SS3) —
 # braço já recebe muito volume indireto nos supinos e remadas.
-SHORT_BLOCKS = ("SS1", "SS4", "CORE")
+SHORT_BLOCKS = ("BASE", "CORE")
 
 
 def _exercises_for(workout: str, curta: bool = False) -> list:
@@ -651,13 +651,7 @@ def _render_session(state: dict, save_fn):
         ss_tag = f"{ex['ss']} · " if ex.get("ss") else ""
         label = f"{icon} {ss_tag}{name}  —  {ex['series']}×{reps_range}"
         with st.expander(label, expanded=not all_done):
-            par = ex.get("par")
-            if par:
-                pos = ex.get("ss_pos", 1)
-                if pos == 1:
-                    st.caption(f"🔁 Supersérie — emenda direto em **{par}**, sem descanso longo")
-                else:
-                    st.caption(f"🔁 Supersérie — fecha o par com **{par}**, depois descansa {_rest_of(ex)}s")
+            st.caption(f"⏱️ Descanso entre séries: {_rest_of(ex)}s")
             if last_hint:
                 st.caption(f"Última vez: {last_hint}")
 

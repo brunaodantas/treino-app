@@ -4,8 +4,7 @@ from utils import now_br
 
 # ── Programa ativo (desde 28/07/2026): corpo inteiro, 3x/semana ────────────────
 # Ciclo fixo de 3 treinos. Cada músculo é treinado 3x na semana em vez de 0,75x.
-# Superséries de antagonistas: o par mantém o descanso ideal por músculo (~2,4 min
-# no SS1) dentro do limite de 40 min de academia.
+# Execução linear, sem supersérie: um exercício por vez, descanso cheio.
 WORKOUT_SEQUENCE = ["A", "B", "C"]
 
 # Dias de musculação: Terça=1, Quarta=2, Sábado=5 (weekday numbers)
@@ -47,58 +46,48 @@ def label_for(workout: str) -> str:
     """Rótulo de um treino, atual ou aposentado. Nunca levanta KeyError."""
     return WORKOUT_LABELS.get(workout) or LEGACY_LABELS.get(workout, f"Treino {workout}")
 
-# Descanso ideal DEPOIS de marcar a série, em segundos.
-# Primeiro exercício do par = só o tempo de trocar de aparelho.
-# Segundo exercício do par = o descanso real do par.
-REST_PAIR_2 = {"SS1": 90, "SS2": 75, "SS3": 60, "SS4": 75, "CORE": 45}
-REST_PAIR_1 = 20
+# Descanso DEPOIS de marcar a série, em segundos.
+# Superséries de antagonistas foram removidas em 28/07/2026: com CTL 13 e TSB
+# negativo, os 20s entre os pares deixavam a densidade alta demais. Cada
+# exercício agora é linear, com o descanso do seu bloco.
+REST_BLOCK = {"BASE": 90, "ACESS": 60, "CORE": 45}
 
-def _ss(ss: str, pos: int, par: str) -> dict:
-    """Metadados de supersérie: grupo, posição no par, parceiro e descanso."""
-    return {
-        "ss": ss,
-        "ss_pos": pos,
-        "par": par,
-        "rest": REST_PAIR_1 if pos == 1 else REST_PAIR_2[ss],
-    }
+# Blocos: BASE = compostos · ACESS = isoladores · CORE = abdômen/lombar
+def _ex(bloco: str) -> dict:
+    """Metadados do exercício: bloco e descanso. Sem supersérie."""
+    return {"ss": bloco, "rest": REST_BLOCK[bloco]}
 
 
 EXERCISES = {
-    # ── Programa ativo — corpo inteiro 3x/semana ───────────────────────────────
+    # ── Programa ativo — corpo inteiro 3x/semana, execução linear ──────────────
+    # Sem supersérie. Perna concentrada no B (quarta), que é seguido por dois
+    # dias de descanso (quinta e sexta).
     "A": [
-        {"nome": "Supino Inclinado Halter",    "series": 3, "reps": "8-10",  "peso_atual":  20.0, "peso_prog":  22.0, **_ss("SS1", 1, "Remada Chest Supported")},
-        {"nome": "Remada Chest Supported",     "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS1", 2, "Supino Inclinado Halter")},
-        {"nome": "Elevação Lateral Polia",     "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS2", 1, "Puxada Alta Polia")},
-        {"nome": "Puxada Alta Polia",          "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS2", 2, "Elevação Lateral Polia")},
-        {"nome": "Tríceps Corda Barra",        "series": 2, "reps": "12-15", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("SS3", 1, "Rosca Direta Polia")},
-        {"nome": "Rosca Direta Polia",         "series": 2, "reps": "12-15", "peso_atual":  25.0, "peso_prog":  26.0, **_ss("SS3", 2, "Tríceps Corda Barra")},
-        {"nome": "Leg Press 45°",              "series": 3, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0, **_ss("SS4", 1, "Cadeira Flexora")},
-        {"nome": "Cadeira Flexora",            "series": 2, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0, **_ss("SS4", 2, "Leg Press 45°")},
-        {"nome": "Prancha",                    "series": 2, "reps": "40s",   "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 2, "")},
+        {"nome": "Supino Inclinado Halter",    "series": 3, "reps": "8-10",  "peso_atual":  20.0, "peso_prog":  22.0, **_ex("BASE")},
+        {"nome": "Remada Chest Supported",     "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Puxada Alta Polia",          "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Elevação Lateral Polia",     "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ex("ACESS")},
+        {"nome": "Tríceps Corda Barra",        "series": 2, "reps": "12-15", "peso_atual":  50.0, "peso_prog":  55.0, **_ex("ACESS")},
+        {"nome": "Rosca Direta Polia",         "series": 2, "reps": "12-15", "peso_atual":  25.0, "peso_prog":  26.0, **_ex("ACESS")},
+        {"nome": "Prancha",                    "series": 2, "reps": "40s",   "peso_atual":   0.0, "peso_prog":   0.0, **_ex("CORE")},
     ],
     "B": [
-        {"nome": "Cadeira Extensora",          "series": 3, "reps": "15-20", "peso_atual":  63.0, "peso_prog":  70.0, **_ss("SS1", 1, "Abdução Quadril Máquina")},
-        {"nome": "Abdução Quadril Máquina",    "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("SS1", 2, "Cadeira Extensora")},
-        {"nome": "Supino Reto Máquina",        "series": 3, "reps": "10-12", "peso_atual":  40.0, "peso_prog":  45.0, **_ss("SS2", 1, "Remada Sentada c/ Pegada V")},
-        {"nome": "Remada Sentada c/ Pegada V", "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS2", 2, "Supino Reto Máquina")},
-        {"nome": "Crucifixo Inverso Polia",    "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS3", 1, "Puxada Fechada Polia")},
-        {"nome": "Puxada Fechada Polia",       "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS3", 2, "Crucifixo Inverso Polia")},
-        {"nome": "Tríceps Mergulho Máquina",   "series": 2, "reps": "10-12", "peso_atual":  70.0, "peso_prog":  80.0, **_ss("SS4", 1, "Rosca Martelo Halter")},
-        {"nome": "Rosca Martelo Halter",       "series": 2, "reps": "10-12", "peso_atual":  14.0, "peso_prog":  16.0, **_ss("SS4", 2, "Tríceps Mergulho Máquina")},
-        {"nome": "Elevação de Pernas",         "series": 2, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 1, "Panturrilha Sentado")},
-        {"nome": "Panturrilha Sentado",        "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("CORE", 2, "Elevação de Pernas")},
+        {"nome": "Leg Press 45°",              "series": 3, "reps": "12-15", "peso_atual": 120.0, "peso_prog": 130.0, **_ex("BASE")},
+        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0, **_ex("BASE")},
+        {"nome": "Cadeira Extensora",          "series": 2, "reps": "15-20", "peso_atual":  63.0, "peso_prog":  70.0, **_ex("ACESS")},
+        {"nome": "Supino Reto Máquina",        "series": 3, "reps": "10-12", "peso_atual":  40.0, "peso_prog":  45.0, **_ex("BASE")},
+        {"nome": "Remada Sentada c/ Pegada V", "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Panturrilha Sentado",        "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ex("ACESS")},
+        {"nome": "Elevação de Pernas",         "series": 2, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0, **_ex("CORE")},
     ],
     "C": [
-        {"nome": "Supino Reto Halter",         "series": 3, "reps": "10-12", "peso_atual":  20.0, "peso_prog":  22.0, **_ss("SS1", 1, "Remada Unilateral Halter")},
-        {"nome": "Remada Unilateral Halter",   "series": 3, "reps": "10-12", "peso_atual":  24.0, "peso_prog":  27.0, **_ss("SS1", 2, "Supino Reto Halter")},
-        {"nome": "Elevação Lateral Polia",     "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ss("SS2", 1, "Puxada Alta Polia")},
-        {"nome": "Puxada Alta Polia",          "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ss("SS2", 2, "Elevação Lateral Polia")},
-        {"nome": "Tríceps Francês Polia",      "series": 2, "reps": "10-12", "peso_atual":  25.0, "peso_prog":  30.0, **_ss("SS3", 1, "Rosca Scott Máquina")},
-        {"nome": "Rosca Scott Máquina",        "series": 2, "reps": "10-12", "peso_atual":  25.0, "peso_prog":  27.0, **_ss("SS3", 2, "Tríceps Francês Polia")},
-        {"nome": "Cadeira Flexora",            "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0, **_ss("SS4", 1, "Adução Quadril Máquina")},
-        {"nome": "Adução Quadril Máquina",     "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ss("SS4", 2, "Cadeira Flexora")},
-        {"nome": "Rodinha (Ab Wheel)",         "series": 2, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0, **_ss("CORE", 1, "Encolhimento Halter")},
-        {"nome": "Encolhimento Halter",        "series": 2, "reps": "12-15", "peso_atual":  24.0, "peso_prog":  27.0, **_ss("CORE", 2, "Rodinha (Ab Wheel)")},
+        {"nome": "Supino Reto Halter",         "series": 3, "reps": "10-12", "peso_atual":  20.0, "peso_prog":  22.0, **_ex("BASE")},
+        {"nome": "Remada Unilateral Halter",   "series": 3, "reps": "10-12", "peso_atual":  24.0, "peso_prog":  27.0, **_ex("BASE")},
+        {"nome": "Puxada Fechada Polia",       "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Tríceps Francês Polia",      "series": 2, "reps": "10-12", "peso_atual":  25.0, "peso_prog":  30.0, **_ex("ACESS")},
+        {"nome": "Rosca Scott Máquina",        "series": 2, "reps": "10-12", "peso_atual":  25.0, "peso_prog":  27.0, **_ex("ACESS")},
+        {"nome": "Adução Quadril Máquina",     "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ex("ACESS")},
+        {"nome": "Rodinha (Ab Wheel)",         "series": 2, "reps": "8",     "peso_atual":   0.0, "peso_prog":   0.0, **_ex("CORE")},
     ],
 }
 

@@ -283,7 +283,7 @@ if "intervals_data" not in st.session_state:
             st.session_state.intervals_data = None
     except Exception as _e:
         st.session_state.intervals_data = None
-        _iv_status = {"ok": False, "error": f"falha ao acessar o Intervals ({type(_e).__name__})"}
+        _iv_status = {"ok": False, "error": f"Intervals: {_e}"}
     st.session_state._iv_status = _iv_status
 
 # Fallback: health_log.json local (mesma estrutura que intervals_data)
@@ -553,7 +553,7 @@ try {{
                     )
                 except Exception as _e:
                     st.session_state._iv_status = {
-                        "ok": False, "error": f"falha ao acessar o Intervals ({type(_e).__name__})"
+                        "ok": False, "error": f"Intervals: {_e}"
                     }
                 st.rerun()
         with col_disc_iv:

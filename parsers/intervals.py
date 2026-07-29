@@ -74,6 +74,12 @@ def fetch_wellness(days: int = 7, timeout: int = 8) -> list[dict]:
     oldest = str(date.today() - timedelta(days=days))
     newest = str(date.today())
 
+    def _fallback(motivo: str):
+        cached = _read_cache()
+        if cached:
+            return cached
+        raise RuntimeError(f"{motivo} e sem cache em {_CACHE_PATH}")
+
     try:
         resp = requests.get(
             f"{INTERVALS_BASE}/athlete/{athlete_id}/wellness",
@@ -81,13 +87,10 @@ def fetch_wellness(days: int = 7, timeout: int = 8) -> list[dict]:
             params={"oldest": oldest, "newest": newest},
             timeout=timeout,
         )
-    except requests.exceptions.Timeout:
-        cached = _read_cache()
-        if cached:
-            return cached
-        raise RuntimeError(f"Intervals API timeout ({timeout}s) e sem cache local")
+    except requests.exceptions.RequestException as e:
+        return _fallback(f"{type(e).__name__} ({timeout}s)")
     if resp.status_code != 200:
-        raise RuntimeError(f"Intervals API {resp.status_code}: {resp.text[:200]}")
+        return _fallback(f"HTTP {resp.status_code} ({resp.text[:80]})")
 
     results = []
     for entry in resp.json():
