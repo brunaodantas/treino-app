@@ -50,7 +50,7 @@ def exchange_code(code: str) -> dict:
         "code": code,
         "grant_type": "authorization_code",
         "redirect_uri": REDIRECT_URI,
-    })
+    }, timeout=15)
     return resp.json()
 
 
@@ -60,7 +60,7 @@ def refresh_token(refresh_tok: str) -> dict:
         "client_secret": get_client_secret(),
         "refresh_token": refresh_tok,
         "grant_type": "refresh_token",
-    })
+    }, timeout=15)
     return resp.json()
 
 
@@ -120,6 +120,8 @@ def fetch_steps(token: str, days: int = 7) -> list[dict]:
         f"{GOOGLE_FIT_BASE}/dataset:aggregate",
         headers={"Authorization": f"Bearer {token}"},
         json=body,
+    
+        timeout=15,
     )
     if resp.status_code != 200:
         return []
@@ -148,6 +150,8 @@ def fetch_calories(token: str, days: int = 7) -> list[dict]:
         f"{GOOGLE_FIT_BASE}/dataset:aggregate",
         headers={"Authorization": f"Bearer {token}"},
         json=body,
+    
+        timeout=15,
     )
     if resp.status_code != 200:
         return []
@@ -176,6 +180,8 @@ def fetch_resting_hr(token: str, days: int = 7) -> list[dict]:
         f"{GOOGLE_FIT_BASE}/dataset:aggregate",
         headers={"Authorization": f"Bearer {token}"},
         json=body,
+    
+        timeout=15,
     )
     if resp.status_code != 200:
         return []
@@ -211,6 +217,8 @@ def fetch_sleep(token: str, days: int = 7) -> list[dict]:
             "activityType": 72,
             "includeDeleted": "false",
         },
+    
+        timeout=15,
     )
 
     # Fallback: usa formato RFC3339
@@ -226,6 +234,8 @@ def fetch_sleep(token: str, days: int = 7) -> list[dict]:
             "endTime": end_dt,
             "activityType": 72,
         },
+    
+        timeout=15,
     )
 
     if resp.status_code != 200:
