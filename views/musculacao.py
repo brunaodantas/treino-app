@@ -24,8 +24,8 @@ MUSCLE_EMOJI = {
 
 WORKOUT_DESC = {
     "A": "Peito · Ombro · Tríceps",
-    "B": "Perna",
-    "C": "Costas · Bíceps",
+    "B": "Costas · Bíceps",
+    "C": "Perna",
     "D": "Peito · Ombro — 2ª dose",
 }
 

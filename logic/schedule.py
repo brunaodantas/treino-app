@@ -19,15 +19,15 @@ FULL_BODY_WORKOUTS = set()
 
 MUSCLE_GROUPS = {
     "A": {"peito", "ombro_lat", "triceps", "core"},
-    "B": {"quadriceps", "isquios", "gluteo_adutor", "panturrilha", "core"},
-    "C": {"costas", "ombro_post", "biceps", "peito_iso"},
+    "B": {"costas", "ombro_post", "biceps", "trapezio"},
+    "C": {"quadriceps", "isquios", "gluteo_adutor", "panturrilha", "core"},
     "D": {"peito", "ombro_lat", "triceps"},
 }
 
 WORKOUT_LABELS = {
     "A": "Treino A — Peito · Ombro · Tríceps",
-    "B": "Treino B — Perna",
-    "C": "Treino C — Costas · Bíceps",
+    "B": "Treino B — Costas · Bíceps",
+    "C": "Treino C — Perna",
     "D": "Treino D — Peito · Ombro (2ª dose)",
 }
 
@@ -58,8 +58,9 @@ def _ex(bloco: str) -> dict:
 
 EXERCISES = {
     # ── Especialização em peito — 3 sessões fixas + 1 eventual ────────────────
-    # A = peito pesado · B = perna · C = costas (+ 2 séries de peito no fim)
-    # D = 2ª dose de peito, a sessão bônus. Execução linear, sem supersérie.
+    # A = peito pesado · B = costas/biceps (sem nenhum exercicio de peito) ·
+    # C = perna · D = 2ª dose de peito. B e C sem sobreposicao com D — o peito
+    # so aparece em A e D, nunca colado em C (dia anterior a D na sugestao).
     "A": [
         {"nome": "Supino Reto Halter",            "series": 3, "reps": "8-10",  "peso_atual":  20.0, "peso_prog":  22.0, **_ex("BASE")},
         {"nome": "Supino Inclinado Halter",       "series": 3, "reps": "10-12", "peso_atual":  20.0, "peso_prog":  22.0, **_ex("BASE")},
@@ -70,6 +71,15 @@ EXERCISES = {
         {"nome": "Prancha",                       "series": 2, "reps": "40s",   "peso_atual":   0.0, "peso_prog":   0.0, **_ex("CORE")},
     ],
     "B": [
+        {"nome": "Puxada Alta Polia",             "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Remada Sentada c/ Pegada V",    "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
+        {"nome": "Remada Unilateral Halter",      "series": 2, "reps": "10-12", "peso_atual":  24.0, "peso_prog":  27.0, **_ex("ACESS")},
+        {"nome": "Crucifixo Inverso Polia",       "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ex("ACESS")},
+        {"nome": "Rosca Direta Polia",            "series": 2, "reps": "12-15", "peso_atual":  25.0, "peso_prog":  26.0, **_ex("ACESS")},
+        {"nome": "Rosca Martelo Halter",          "series": 2, "reps": "10-12", "peso_atual":  14.0, "peso_prog":  16.0, **_ex("ACESS")},
+        {"nome": "Encolhimento Halter",           "series": 2, "reps": "12-15", "peso_atual":  24.0, "peso_prog":  27.0, **_ex("ACESS")},
+    ],
+    "C": [
         {"nome": "Leg Press Horizontal",          "series": 3, "reps": "12-15", "peso_atual": 100.0, "peso_prog": 110.0, **_ex("BASE")},
         {"nome": "Cadeira Flexora",               "series": 3, "reps": "12-15", "peso_atual":  41.0, "peso_prog":  46.0, **_ex("BASE")},
         {"nome": "Cadeira Extensora",             "series": 2, "reps": "15-20", "peso_atual":  63.0, "peso_prog":  70.0, **_ex("ACESS")},
@@ -77,15 +87,6 @@ EXERCISES = {
         {"nome": "Abdução Quadril Máquina",       "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ex("ACESS")},
         {"nome": "Panturrilha Sentado",           "series": 2, "reps": "15-20", "peso_atual":  50.0, "peso_prog":  55.0, **_ex("ACESS")},
         {"nome": "Elevação de Pernas",            "series": 2, "reps": "12",    "peso_atual":   0.0, "peso_prog":   0.0, **_ex("CORE")},
-    ],
-    "C": [
-        {"nome": "Puxada Alta Polia",             "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
-        {"nome": "Remada Sentada c/ Pegada V",    "series": 3, "reps": "10-12", "peso_atual":  45.0, "peso_prog":  50.0, **_ex("BASE")},
-        {"nome": "Remada Unilateral Halter",      "series": 2, "reps": "10-12", "peso_atual":  24.0, "peso_prog":  27.0, **_ex("ACESS")},
-        {"nome": "Crucifixo Inverso Polia",       "series": 2, "reps": "12-15", "peso_atual":   9.0, "peso_prog":  11.0, **_ex("ACESS")},
-        {"nome": "Rosca Direta Polia",            "series": 2, "reps": "12-15", "peso_atual":  25.0, "peso_prog":  26.0, **_ex("ACESS")},
-        {"nome": "Rosca Martelo Halter",          "series": 2, "reps": "10-12", "peso_atual":  14.0, "peso_prog":  16.0, **_ex("ACESS")},
-        {"nome": "Crossover Polia",               "series": 2, "reps": "12-15", "peso_atual":  13.0, "peso_prog":  15.0, **_ex("ACESS")},
     ],
     "D": [
         {"nome": "Supino Inclinado Máquina",      "series": 3, "reps": "10-12", "peso_atual":  40.0, "peso_prog":  45.0, **_ex("BASE")},
