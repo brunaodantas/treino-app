@@ -28,7 +28,7 @@ WORKOUT_LABELS = {
     "A": "Treino A — Peito · Ombro · Tríceps",
     "B": "Treino B — Perna",
     "C": "Treino C — Costas · Bíceps",
-    "D": "Treino D — Peito · Ombro (bônus)",
+    "D": "Treino D — Peito · Ombro (2ª dose)",
 }
 
 # Split A–E aposentado em 25/07/2026. Mantido só para o histórico não quebrar —

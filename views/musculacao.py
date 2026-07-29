@@ -26,7 +26,7 @@ WORKOUT_DESC = {
     "A": "Peito · Ombro · Tríceps",
     "B": "Perna",
     "C": "Costas · Bíceps",
-    "D": "Peito · Ombro (bônus)",
+    "D": "Peito · Ombro — 2ª dose",
 }
 
 # ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
@@ -477,13 +477,9 @@ def _render_picker(state: dict, save_fn):
                 _init_session(letter, state, save_fn, curta=True)
                 st.rerun()
 
-    for letter in ("A", "B", "C"):
+    for letter in ("A", "B", "C", "D"):
         _pick_workout(letter)
     st.caption("⚡ curta = par principal + perna + core, ~22 min. Conta como o treino do ciclo.")
-
-    st.markdown("---")
-    st.caption("🎁 Bônus — quando bater vontade extra, qualquer dia (sábado, domingo, sem compromisso)")
-    _pick_workout("D")
 
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
