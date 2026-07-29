@@ -357,6 +357,8 @@ def _finish_workout(state: dict, save_fn):
 
     if is_connected(state):
         token = get_valid_token(state, save_fn)
+        if not token:
+            st.toast("⚠️ Strava: token expirado e não foi possível renovar. Reconecte na aba ⚙️.", icon="⚠️")
         if token:
             elapsed_min = elapsed // 60
             lines = [
@@ -505,10 +507,10 @@ def _render_picker(state: dict, save_fn):
 
     st.markdown("---")
     st.subheader("📋 Últimos Treinos de Musculação")
-    _render_weight_history(state)
+    _render_weight_history(state, save_fn)
 
 
-def _render_weight_history(state: dict):
+def _render_weight_history(state: dict, save_fn):
     import pandas as pd
     from datetime import datetime
     from parsers.strava_api import get_valid_token, fetch_recent_activities, is_connected
@@ -517,7 +519,12 @@ def _render_weight_history(state: dict):
 
     # Strava API (fonte principal)
     if is_connected(state):
-        token = get_valid_token(state, lambda s: None)
+        # Bug corrigido em 29/07/2026: um save_fn descartável aqui fazia o token
+        # renovado nunca ser persistido. Se o refresh_token do Strava é
+        # rotacionado (invalidado após uso), o token salvo em state.json ficava
+        # obsoleto e a próxima renovação real (ex: ao finalizar um treino)
+        # falhava silenciosamente — o treino salvava local mas nunca ia pro Strava.
+        token = get_valid_token(state, save_fn)
         if token:
             activities = fetch_recent_activities(token, per_page=100)
             wt = [a for a in activities if a.get("sport_type") == "WeightTraining"]
