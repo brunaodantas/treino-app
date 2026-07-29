@@ -23,9 +23,10 @@ MUSCLE_EMOJI = {
 }
 
 WORKOUT_DESC = {
-    "A": "Corpo inteiro · Supino Inclinado + Remada Chest",
-    "B": "Corpo inteiro · Supino Máquina + Remada V",
-    "C": "Corpo inteiro · Supino Halter + Remada Unilateral",
+    "A": "Peito · Ombro · Tríceps",
+    "B": "Perna",
+    "C": "Costas · Bíceps",
+    "D": "Peito · Ombro (bônus)",
 }
 
 # ── Timer templates (plain strings — JS braces unescaped) ──────────────────────
@@ -479,6 +480,10 @@ def _render_picker(state: dict, save_fn):
     for letter in ("A", "B", "C"):
         _pick_workout(letter)
     st.caption("⚡ curta = par principal + perna + core, ~22 min. Conta como o treino do ciclo.")
+
+    st.markdown("---")
+    st.caption("🎁 Bônus — quando bater vontade extra, qualquer dia (sábado, domingo, sem compromisso)")
+    _pick_workout("D")
 
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
