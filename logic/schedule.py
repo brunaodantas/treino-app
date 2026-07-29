@@ -48,7 +48,7 @@ def label_for(workout: str) -> str:
 # Superséries de antagonistas foram removidas em 28/07/2026: com CTL 13 e TSB
 # negativo, os 20s entre os pares deixavam a densidade alta demais. Cada
 # exercício agora é linear, com o descanso do seu bloco.
-REST_BLOCK = {"BASE": 90, "ACESS": 60, "CORE": 45}
+REST_BLOCK = {"BASE": 75, "ACESS": 45, "CORE": 30}
 
 # Blocos: BASE = compostos · ACESS = isoladores · CORE = abdômen/lombar
 def _ex(bloco: str) -> dict:
