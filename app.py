@@ -254,9 +254,10 @@ if "gfit_data" not in st.session_state:
             if _tok:
                 _gd = fetch_all(_tok, days=7)
                 st.session_state.gfit_data = _gd
-                _days = len({e["data"] for k in ("resting_hr", "steps", "sleep", "calories")
-                             for e in _gd.get(k, []) if e.get("data")})
-                _gfit_status = {"ok": True, "count": _days}
+                _all_dates = {e["data"] for k in ("resting_hr", "steps", "sleep", "calories")
+                              for e in _gd.get(k, []) if e.get("data")}
+                _gfit_status = {"ok": True, "count": len(_all_dates),
+                                 "last": max(_all_dates) if _all_dates else None}
             else:
                 st.session_state.gfit_data = None
                 _gfit_status = {"ok": False, "error": "token expirado — reconecte o Google Fit"}
