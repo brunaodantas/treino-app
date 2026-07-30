@@ -61,11 +61,22 @@ def _write_cache(data: list[dict]):
         pass
 
 
-def fetch_wellness(days: int = 7, timeout: int = 8) -> list[dict]:
+class IntervalsStale(Exception):
+    """API falhou; devolve cache antigo. O chamador decide se aceita ou avisa."""
+    def __init__(self, motivo: str, cached: list[dict]):
+        self.motivo = motivo
+        self.cached = cached
+        super().__init__(motivo)
+
+
+def fetch_wellness(days: int = 7, timeout: int = 8, allow_cache_fallback: bool = True) -> list[dict]:
     """Retorna dados de wellness (HRV, FC repouso, sono, peso) dos últimos N dias.
 
-    Em caso de timeout devolve o último resultado em cache — o boot do app não
-    pode ficar bloqueado esperando a API.
+    Em caso de falha, se allow_cache_fallback=True (uso no boot, não pode travar
+    a página), devolve o cache local — que pode estar bem desatualizado.
+    Se allow_cache_fallback=False (sync manual, o usuário está esperando um
+    resultado de verdade), levanta IntervalsStale em vez de mentir "sucesso"
+    com dado velho.
     """
     athlete_id, api_key = _get_credentials()
     if not athlete_id or not api_key:
@@ -76,6 +87,8 @@ def fetch_wellness(days: int = 7, timeout: int = 8) -> list[dict]:
 
     def _fallback(motivo: str):
         cached = _read_cache()
+        if not allow_cache_fallback:
+            raise IntervalsStale(motivo, cached)
         if cached:
             return cached
         raise RuntimeError(f"{motivo} e sem cache em {_CACHE_PATH}")
