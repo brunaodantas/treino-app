@@ -2,7 +2,7 @@ import re
 import time
 import streamlit as st
 import streamlit.components.v1 as _components
-from datetime import datetime
+from datetime import datetime, timedelta
 from logic.schedule import (
     EXERCISES, WORKOUT_LABELS, MUSCLE_GROUPS, check_72h_conflict, label_for,
     get_scheduled_workout, get_next_workout, mark_workout_done, WORKOUT_SEQUENCE,
@@ -305,6 +305,35 @@ def _init_session(workout: str, state: dict, save_fn, curta: bool = False):
     _save_active_workout(state, save_fn)
 
 
+def _post_strava_simples(state: dict, save_fn, workout: str, duracao_min: int) -> str:
+    """Posta no Strava um treino registrado sem detalhar séries.
+
+    Devolve o sufixo a concatenar na mensagem de sucesso (string vazia quando
+    o Strava não está conectado). sport_type WeightTraining é o que faz a
+    atividade contar como musculação — com outro tipo o Strava recusa o POST.
+    """
+    from parsers.strava_api import is_connected, get_valid_token, create_activity
+
+    if not is_connected(state):
+        return ""
+    token = get_valid_token(state, save_fn)
+    if not token:
+        return " (Strava: token expirado — reconecte na aba ⚙️)"
+    inicio = now_br().replace(microsecond=0) - timedelta(minutes=duracao_min)
+    result = create_activity(
+        token=token,
+        name=f"Força {workout} - Treino Hub",
+        sport_type="WeightTraining",
+        start_date_local=inicio.isoformat()[:19],
+        elapsed_time=duracao_min * 60,
+        description=f"Treino {workout} — {WORKOUT_DESC.get(workout, '')}\n"
+                    f"Registrado sem detalhamento de séries.".rstrip(),
+    )
+    if result.get("id"):
+        return " Salvo no Strava 🟠"
+    return f" (Strava: {result.get('message', 'falhou')})"
+
+
 def _finish_workout(state: dict, save_fn):
     from parsers.strava_api import is_connected, get_valid_token, create_activity
 
@@ -380,7 +409,7 @@ def _finish_workout(state: dict, save_fn):
             desc = "\n".join(lines).rstrip()
             result = create_activity(
                 token=token,
-                name=f"Treino {workout} — Treino Hub",
+                name=f"Força {workout} - Treino Hub",
                 sport_type="WeightTraining",
                 start_date_local=started_at[:19],
                 elapsed_time=max(elapsed, 60),
@@ -499,10 +528,15 @@ def _render_picker(state: dict, save_fn):
         q_conflict, q_msg = check_72h_conflict(state, quick)
         if q_conflict:
             st.caption(q_msg)
+        q_dur = st.number_input("Duração (min)", min_value=5, max_value=180, value=30, step=5,
+                                key="quick_mark_dur")
         if st.button(f"Registrar Treino {quick}", use_container_width=True, key="quick_mark_btn"):
             mark_workout_done(state, workout=quick)
             save_fn(state)
-            st.success(f"Treino {quick} registrado!")
+            # Antes só gravava no workout_log local. Como "Últimos Treinos" lê do
+            # Strava, o treino registrado por aqui ficava invisível no app.
+            _msg_strava = _post_strava_simples(state, save_fn, quick, int(q_dur))
+            st.success(f"Treino {quick} registrado!{_msg_strava}")
             st.rerun()
 
     st.markdown("---")
@@ -542,6 +576,26 @@ def _render_weight_history(state: dict, save_fn):
                     "Duração": f"{dur // 60} min" if dur else "—",
                     "FC Média": f"{int(fc)} bpm" if fc else "—",
                 })
+
+    # Treinos registrados no app que não chegaram ao Strava (POST falhou, token
+    # expirado, ou registro rápido feito offline). Sem isto o treino somia da
+    # tela, já que a tabela lê do Strava: parecia que nunca tinha acontecido.
+    _datas_strava = {r["Data"] for r in rows}
+    for s in state.get("workout_log", [])[:30]:
+        try:
+            data_fmt = datetime.fromisoformat(s["date"]).strftime("%d/%m/%Y")
+        except Exception:
+            continue
+        if data_fmt in _datas_strava:
+            continue
+        w = s.get("workout", "")
+        rows.append({
+            "Data": data_fmt,
+            "Treino": f"Força {w} - Treino Hub (só local)",
+            "Duração": "—",
+            "FC Média": "—",
+        })
+    rows.sort(key=lambda r: r["Data"][6:10] + r["Data"][3:5] + r["Data"][:2], reverse=True)
 
     # Fallback: histórico interno do app
     if not rows:
