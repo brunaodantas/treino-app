@@ -300,6 +300,45 @@ if "health_log_data" not in st.session_state:
     else:
         st.session_state.health_log_data = None
 
+
+_WELLNESS_FIELDS = ("hrv", "fc_repouso", "sono_horas", "ctl", "atl", "tsb", "peso")
+
+
+def merge_wellness(intervals_data, health_log_data):
+    """Une Intervals + health_log.json por data, campo a campo.
+
+    Antes era `intervals_data or health_log_data`: bastava o Intervals devolver
+    o cache antigo (não-vazio) para o health_log — atualizado todo dia pela
+    rotina das 9h — nunca ser lido. Resultado: a tela travava na última data
+    que o Intervals conseguiu buscar.
+
+    Para cada data, o health_log é a base e o Intervals sobrescreve os campos
+    em que tem valor. Assim o dado da API ganha quando existe, e o log preenche
+    as datas/campos que faltam.
+    """
+    por_data: dict[str, dict] = {}
+    for entry in (health_log_data or []):
+        d = entry.get("data")
+        if not d:
+            continue
+        base = {k: entry.get(k) for k in _WELLNESS_FIELDS}
+        # health_log grava o peso como "peso_kg"; o resto das views espera "peso"
+        base["peso"] = entry.get("peso") if entry.get("peso") is not None else entry.get("peso_kg")
+        base["data"] = d
+        por_data[d] = base
+    for entry in (intervals_data or []):
+        d = entry.get("data")
+        if not d:
+            continue
+        alvo = por_data.setdefault(d, {"data": d})
+        for k in _WELLNESS_FIELDS:
+            v = entry.get(k)
+            if v is not None:
+                alvo[k] = v
+        for k in _WELLNESS_FIELDS:
+            alvo.setdefault(k, None)
+    return sorted(por_data.values(), key=lambda e: e["data"], reverse=True)
+
 export_dados_treino(st.session_state.app_state)
 
 # ── OAuth callbacks ────────────────────────────────────────────────────────────
@@ -352,7 +391,8 @@ def _resumo_dia(state) -> str:
     """
     parts = []
 
-    data = st.session_state.intervals_data or st.session_state.get("health_log_data") or []
+    data = merge_wellness(st.session_state.intervals_data,
+                          st.session_state.get("health_log_data"))
     tsb = None
     for e in sorted(data, key=lambda x: x.get("data", ""), reverse=True):
         if e.get("tsb") is not None:
@@ -413,7 +453,8 @@ with tab1:
         save_state,
         st.session_state.gfit_data,
         st.session_state.health_data,
-        st.session_state.intervals_data or st.session_state.get("health_log_data"),
+        merge_wellness(st.session_state.intervals_data,
+                       st.session_state.get("health_log_data")),
     ))
 
 with tab2:

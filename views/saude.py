@@ -51,8 +51,20 @@ def _load_log() -> pd.DataFrame:
     return df
 
 
-def _latest_data_date() -> str | None:
-    """Data (YYYY-MM-DD) do registro mais recente com FC ou carga no health_log."""
+def _latest_data_date(intervals_data=None) -> str | None:
+    """Data (YYYY-MM-DD) do registro mais recente com FC ou sono.
+
+    Procura no dataset que a tela realmente usa. Antes lia sempre o
+    health_log.json: quando a data mais recente de lá não existia na fonte
+    exibida, o fallback apontava para um dia sem dado e o cartão voltava
+    "Sem dados" mesmo havendo registro utilizável.
+    """
+    if intervals_data:
+        datas = [e.get("data") for e in intervals_data
+                 if e.get("data") and (e.get("fc_repouso") is not None
+                                       or e.get("sono_horas") is not None)]
+        if datas:
+            return max(datas)
     df = _load_log()
     if df.empty:
         return None
@@ -253,7 +265,7 @@ def render_saude(state: dict = None, save_fn=None,
     # quando o Intervals já tem a carga do dia mas o wellness ainda não sincronizou —
     # cai para o registro mais recente que os tenha, em vez de fingir "desconectado".
     if fc is None and sono is None:
-        _recent = _latest_data_date()
+        _recent = _latest_data_date(intervals_data)
         if _recent and _recent != today:
             ref_date = _recent
             fc, sono, passos, calorias, ctl, atl, tsb = _merge_daily(

@@ -102,6 +102,11 @@ def fetch_wellness(days: int = 7, timeout: int = 8, allow_cache_fallback: bool =
         )
     except requests.exceptions.RequestException as e:
         return _fallback(f"{type(e).__name__} ({timeout}s)")
+    if resp.status_code == 401:
+        return _fallback("credencial do Intervals inválida — reconecte na aba ⚙️ "
+                         "(API key em intervals.icu → Settings → Developer)")
+    if resp.status_code == 403:
+        return _fallback("athlete ID incorreto — deve começar com 'i' (ex.: i607029)")
     if resp.status_code != 200:
         return _fallback(f"HTTP {resp.status_code} ({resp.text[:80]})")
 
@@ -111,15 +116,23 @@ def fetch_wellness(days: int = 7, timeout: int = 8, allow_cache_fallback: bool =
         if not d:
             continue
         sleep_secs = entry.get("sleepSecs") or 0
+        ctl = entry.get("ctl")
+        atl = entry.get("atl")
+        # A API não devolve tsb no endpoint de wellness — sempre vem null.
+        # Frescor é CTL − ATL por definição; calcular aqui, senão o card
+        # "Frescor (TSB)" fica em "—" mesmo com carga disponível.
+        tsb = entry.get("tsb")
+        if tsb is None and ctl is not None and atl is not None:
+            tsb = round(ctl - atl, 1)
         results.append({
             "data": d,
             "hrv": entry.get("hrv"),
             "fc_repouso": entry.get("restingHR"),
             "sono_horas": round(sleep_secs / 3600, 1) if sleep_secs else None,
             "peso": entry.get("weight"),
-            "ctl": entry.get("ctl"),   # fitness (forma)
-            "atl": entry.get("atl"),   # fadiga
-            "tsb": entry.get("tsb"),   # frescor (form)
+            "ctl": ctl,   # fitness (forma)
+            "atl": atl,   # fadiga
+            "tsb": tsb,   # frescor (form)
         })
     results = sorted(results, key=lambda x: x["data"], reverse=True)
     if results:
