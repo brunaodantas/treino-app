@@ -305,38 +305,122 @@ def _init_session(workout: str, state: dict, save_fn, curta: bool = False):
     _save_active_workout(state, save_fn)
 
 
-def _post_strava_simples(state: dict, save_fn, workout: str, duracao_min: int) -> str:
-    """Posta no Strava um treino registrado sem detalhar séries.
+def strava_nome(workout: str) -> str:
+    """Nome padrão de toda atividade criada pelo app. Ponto único — se mudar
+    o padrão, muda aqui e vale para sessão completa e registro rápido."""
+    return f"Força {workout} - Treino Hub"
 
-    Devolve o sufixo a concatenar na mensagem de sucesso (string vazia quando
-    o Strava não está conectado). sport_type WeightTraining é o que faz a
-    atividade contar como musculação — com outro tipo o Strava recusa o POST.
+
+def _guardar_pendente(state: dict, save_fn, pend: dict, erro: str):
+    pend = dict(pend, erro=erro, quando=now_br().isoformat())
+    fila = [p for p in state.get("_strava_pendentes", [])
+            if p.get("start_iso") != pend["start_iso"]]
+    state["_strava_pendentes"] = ([pend] + fila)[:10]
+    state["_strava_ultimo"] = {"ok": False, "quando": pend["quando"], "erro": erro}
+    save_fn(state)
+
+
+def enviar_strava(state: dict, save_fn, *, workout: str, start_iso: str,
+                  elapsed_seg: int, descricao: str) -> tuple[bool, str]:
+    """Posta a atividade no Strava e devolve (ok, mensagem).
+
+    Ponto único de envio. Em caso de falha o treino entra em
+    `state["_strava_pendentes"]` para reenvio manual: antes o erro só aparecia
+    num toast que sumia em segundos, o treino ficava salvo só no app e nunca
+    mais era tentado — dava a impressão de que o Strava "não pega".
+
+    sport_type WeightTraining é o que faz a atividade contar como musculação.
     """
     from parsers.strava_api import is_connected, get_valid_token, create_activity
 
+    pend = {"workout": workout, "start_iso": start_iso,
+            "elapsed_seg": int(elapsed_seg), "descricao": descricao}
+
     if not is_connected(state):
-        return ""
+        return False, "Strava não conectado — conecte na aba ⚙️"
+
     token = get_valid_token(state, save_fn)
     if not token:
-        return " (Strava: token expirado — reconecte na aba ⚙️)"
-    inicio = now_br().replace(microsecond=0) - timedelta(minutes=duracao_min)
-    result = create_activity(
-        token=token,
-        name=f"Força {workout} - Treino Hub",
-        sport_type="WeightTraining",
-        start_date_local=inicio.isoformat()[:19],
-        elapsed_time=duracao_min * 60,
-        description=f"Treino {workout} — {WORKOUT_DESC.get(workout, '')}\n"
-                    f"Registrado sem detalhamento de séries.".rstrip(),
-    )
+        msg = "token expirado e não foi possível renovar — reconecte na aba ⚙️"
+        _guardar_pendente(state, save_fn, pend, msg)
+        return False, msg
+
+    try:
+        result = create_activity(
+            token=token,
+            name=strava_nome(workout),
+            sport_type="WeightTraining",
+            start_date_local=start_iso[:19],
+            elapsed_time=max(int(elapsed_seg), 60),
+            description=descricao,
+        )
+    except Exception as e:
+        _guardar_pendente(state, save_fn, pend, f"{type(e).__name__}: {e}")
+        return False, f"{type(e).__name__}: {e}"
+
     if result.get("id"):
-        return " Salvo no Strava 🟠"
-    return f" (Strava: {result.get('message', 'falhou')})"
+        state["_strava_pendentes"] = [
+            p for p in state.get("_strava_pendentes", [])
+            if p.get("start_iso") != start_iso
+        ]
+        state["_strava_ultimo"] = {"ok": True, "quando": now_br().isoformat(),
+                                   "nome": strava_nome(workout), "id": result["id"]}
+        save_fn(state)
+        return True, str(result["id"])
+
+    msg = result.get("message") or str(result)[:120] or "erro desconhecido"
+    _guardar_pendente(state, save_fn, pend, msg)
+    return False, msg
+
+
+def _post_strava_simples(state: dict, save_fn, workout: str, duracao_min: int) -> str:
+    """Registro rápido (sem detalhar séries). Devolve sufixo para a mensagem."""
+    inicio = now_br().replace(microsecond=0) - timedelta(minutes=duracao_min)
+    ok, msg = enviar_strava(
+        state, save_fn,
+        workout=workout,
+        start_iso=inicio.isoformat(),
+        elapsed_seg=duracao_min * 60,
+        descricao=f"Treino {workout} — {WORKOUT_DESC.get(workout, '')}. "
+                  f"Registrado sem detalhamento de séries.",
+    )
+    return " Salvo no Strava 🟠" if ok else f" (Strava: {msg})"
+
+
+def _render_strava_status(state: dict, save_fn):
+    """Mostra pendências de envio ao Strava e permite reenviar."""
+    fila = state.get("_strava_pendentes", [])
+    if not fila:
+        ultimo = state.get("_strava_ultimo")
+        if ultimo and ultimo.get("ok"):
+            st.caption(f"🟠 Último envio ao Strava: {ultimo.get('nome', '')} ✅")
+        return
+
+    st.warning(f"⚠️ {len(fila)} treino(s) não chegaram ao Strava.")
+    for p in fila:
+        quando = str(p.get("start_iso", ""))[:16].replace("T", " ")
+        st.caption(f"• {strava_nome(p.get('workout', '?'))} — {quando} · {p.get('erro', '')}")
+
+    if st.button("🔄 Reenviar ao Strava", use_container_width=True, key="strava_retry"):
+        enviados = 0
+        for p in list(fila):
+            ok, _ = enviar_strava(
+                state, save_fn,
+                workout=p.get("workout", ""),
+                start_iso=p.get("start_iso", ""),
+                elapsed_seg=p.get("elapsed_seg", 60),
+                descricao=p.get("descricao", ""),
+            )
+            enviados += int(ok)
+        restantes = len(state.get("_strava_pendentes", []))
+        if restantes:
+            st.error(f"{enviados} enviado(s), {restantes} ainda falhando.")
+        else:
+            st.success(f"{enviados} treino(s) enviado(s) ao Strava.")
+        st.rerun()
 
 
 def _finish_workout(state: dict, save_fn):
-    from parsers.strava_api import is_connected, get_valid_token, create_activity
-
     session = st.session_state.active_workout
     workout = session["workout"]
     now = now_br()
@@ -384,41 +468,38 @@ def _finish_workout(state: dict, save_fn):
     st.success(f"✅ Treino {workout} finalizado! Volume: {volume:,.0f} kg")
     _components.html(_WAKELOCK_OFF, height=0)
 
-    if is_connected(state):
-        token = get_valid_token(state, save_fn)
-        if not token:
-            st.toast("⚠️ Strava: token expirado e não foi possível renovar. Reconecte na aba ⚙️.", icon="⚠️")
-        if token:
-            elapsed_min = elapsed // 60
-            lines = [
-                f"Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}",
-                f"Duração: {elapsed_min}min | Volume: {volume:,.0f} kg",
-                "",
-            ]
-            for ex_name, ex_sets in session["sets"].items():
-                done_sets = [s for s in ex_sets if s["done"]]
-                if not done_sets:
-                    continue
-                lines.append(ex_name)
-                for i, s in enumerate(done_sets, 1):
-                    w = s["weight"]
-                    r = s["reps"]
-                    w_str = f"{w:g}" if w else "—"
-                    lines.append(f"  Série {i}: {w_str} kg × {r}")
-                lines.append("")
-            desc = "\n".join(lines).rstrip()
-            result = create_activity(
-                token=token,
-                name=f"Força {workout} - Treino Hub",
-                sport_type="WeightTraining",
-                start_date_local=started_at[:19],
-                elapsed_time=max(elapsed, 60),
-                description=desc,
-            )
-            if result.get("id"):
-                st.toast("🟠 Salvo no Strava!", icon="✅")
-            else:
-                st.toast(f"Strava: erro {result.get('message','desconhecido')}", icon="⚠️")
+    elapsed_min = elapsed // 60
+    lines = [
+        f"Treino {workout} — {WORKOUT_DESC.get(workout, 'aposentado')}",
+        f"Duração: {elapsed_min}min | Volume: {volume:,.0f} kg",
+        "",
+    ]
+    for ex_name, ex_sets in session["sets"].items():
+        done_sets = [s for s in ex_sets if s["done"]]
+        if not done_sets:
+            continue
+        lines.append(ex_name)
+        for i, s in enumerate(done_sets, 1):
+            w = s["weight"]
+            r = s["reps"]
+            w_str = f"{w:g}" if w else "—"
+            lines.append(f"  Série {i}: {w_str} kg × {r}")
+        lines.append("")
+
+    ok, msg = enviar_strava(
+        state, save_fn,
+        workout=workout,
+        start_iso=started_at,
+        elapsed_seg=max(elapsed, 60),
+        descricao="\n".join(lines).rstrip(),
+    )
+    # st.error em vez de toast: o toast some em segundos e a falha passava
+    # despercebida. O treino também fica na fila de reenvio.
+    if ok:
+        st.success(f"🟠 Salvo no Strava como “{strava_nome(workout)}”")
+    else:
+        st.error(f"⚠️ Não foi para o Strava: {msg}\n\n"
+                 f"O treino está salvo no app. Use “Reenviar ao Strava” abaixo.")
 
 
 def render_musculacao(state: dict, hevy_df, save_fn):
@@ -540,6 +621,7 @@ def _render_picker(state: dict, save_fn):
             st.rerun()
 
     st.markdown("---")
+    _render_strava_status(state, save_fn)
     st.subheader("📋 Últimos Treinos de Musculação")
     _render_weight_history(state, save_fn)
 
