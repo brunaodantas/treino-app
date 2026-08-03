@@ -1,5 +1,25 @@
 [
   {
+    "data": "2026-08-03",
+    "hrv": null,
+    "fc_repouso": 75,
+    "sono_horas": 7.4,
+    "peso_kg": null,
+    "ctl": 14.5,
+    "atl": 29.6,
+    "tsb": -15.1
+  },
+  {
+    "data": "2026-08-02",
+    "hrv": null,
+    "fc_repouso": 69,
+    "sono_horas": 7.2,
+    "peso_kg": 88.4,
+    "ctl": 14.8,
+    "atl": 34.2,
+    "tsb": -19.3
+  },
+  {
     "data": "2026-08-01",
     "hrv": null,
     "fc_repouso": 76,
