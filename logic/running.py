@@ -7,12 +7,13 @@ RUNNING_DAYS = {0: "Segunda", 1: "Terça", 2: "Quarta", 4: "Sexta"}
 REST_DAYS = {3: "Quinta", 6: "Domingo"}
 RUNNING_OPTIONAL_DAYS = set()  # nenhuma corrida é condicional — HRV descontinuado
 
-# Segunda e sexta são os dias sem musculação: recebem as corridas mais longas.
-# Terça e quarta dividem o dia com a musculação: corrida curta.
+# Ajustado em 11/08/2026: dias longos passam a ser quarta e sexta (pedido do
+# usuário). Quarta agora acumula Treino B + corrida longa no mesmo dia —
+# aceitável com o TSB recuperado no momento da mudança.
 DAY_RUN_TYPE = {
-    0: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda) — dia sem musculação"},
+    0: {"tipo": "Z1 curta", "duracao": "20 min", "descricao": "Corrida Z1 curta — 20 min, FC ≤ 130bpm"},
     1: {"tipo": "Z1 curta", "duracao": "20 min", "descricao": "Corrida Z1 curta — 20 min, FC ≤ 130bpm (dia de musculação)"},
-    2: {"tipo": "Z1 curta", "duracao": "20 min", "descricao": "Corrida Z1 curta — 20 min, FC ≤ 130bpm (dia de musculação)"},
+    2: {"tipo": "intervalada", "duracao": "30-40 min", "descricao": "Corrida intervalada 1:1 (1 min corre / 1 min anda) — dia de musculação"},
     4: {"tipo": "esteira intervalada", "duracao": "30-40 min", "descricao": "Corrida esteira intervalada — dia sem musculação"},
 }
 
