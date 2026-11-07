@@ -64,6 +64,8 @@ def export_dados_treino(state: dict):
     next_wk = get_next_workout(state)
     fila = {
         "sequencia": ["A", "B", "C", "D"],
+        "meta_semanal": 4,
+        "bonus_opcional": "E",
         "indice_atual": state.get("current_index", 0),
         "proximo": next_wk,
         "descricao_proximo": WORKOUT_LABELS.get(next_wk, ""),
