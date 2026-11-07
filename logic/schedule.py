@@ -6,13 +6,13 @@ from utils import now_br
 # 3 sessões fixas (Ter/Qua/Sex) + 1 eventual (Sáb). Peito é a prioridade:
 # recebe 2 exposições semanais mesmo se só as 3 fixas acontecerem, e 3 quando
 # o Treino D sai. Execução linear, sem supersérie.
-WORKOUT_SEQUENCE = ["A", "B", "C"]
+WORKOUT_SEQUENCE = ["A", "B", "C", "D"]
 
 # Dias fixos de musculação: Terça=1, Quarta=2, Sexta=4 (weekday numbers)
 # Sábado fica livre para o Treino D (bônus de peito), quando houver disposição.
 # Segunda é corrida. Quinta e domingo, descanso.
-WORKOUT_DAYS = [1, 2, 4]
-DAY_NAMES = {1: "Terça", 2: "Quarta", 4: "Sexta"}
+WORKOUT_DAYS = [0, 1, 3, 5]
+DAY_NAMES = {0: "Segunda", 1: "Terça", 3: "Quinta", 5: "Sábado"}
 
 # Push / Pull / Legs — cada dia tem grupos próprios, sem sobreposição.
 FULL_BODY_WORKOUTS = set()
@@ -29,6 +29,7 @@ WORKOUT_LABELS = {
     "B": "Treino B — Costas · Bíceps",
     "C": "Treino C — Perna",
     "D": "Treino D — Peito · Ombro (2ª dose)",
+    "E": "Treino E — Bônus opcional (quarta ou sexta)",
 }
 
 # Split A–E aposentado em 25/07/2026. Mantido só para o histórico não quebrar —
@@ -124,12 +125,10 @@ def get_cycle_week(state: dict, ref: date = None) -> int:
 def get_scheduled_workout(state: dict, d: date = None) -> str | None:
     """
     Retorna o treino programado para a data d.
-    Retorna None se d não for dia de musculação (Ter/Qua/Sáb).
+    Retorna None fora dos quatro dias base (Seg/Ter/Qui/Sáb).
 
-    Mapeamento fixo — 3 treinos e 3 dias sincronizam, sem fila deslizante:
-      Ter = Treino 1 · Qua = Treino 2 · Sáb = Treino 3
-    Se numa semana houver uma 4ª sessão, ela avança o ciclo manualmente pela
-    seleção livre de treino no dashboard.
+    Mapeamento fixo A–D para quatro dias base. Quarta/sexta são bônus opcionais.
+    A seleção manual de treino continua liberada, inclusive fora da agenda.
     """
     d = d or date.today()
     weekday = d.weekday()
@@ -171,8 +170,6 @@ def get_next_scheduled(state: dict) -> tuple:
 
 def get_next_workout(state: dict) -> str:
     """Retorna o treino da agenda para hoje (se dia de musculação) ou o próximo agendado."""
-    if state.get("use_e_next"):
-        return "E"
     today_w = get_scheduled_workout(state)
     if today_w:
         return today_w
@@ -242,10 +239,7 @@ def check_72h_conflict(state: dict, workout: str):
 # ── Marcar treino concluído ───────────────────────────────────────────────────
 
 def mark_workout_done(state: dict, workout: str = None) -> dict:
-    if state.get("use_e_next"):
-        workout = "E"
-        state["use_e_next"] = False
-    elif workout is None:
+    if workout is None:
         workout = get_next_workout(state)
 
     now = now_br()
@@ -258,6 +252,6 @@ def mark_workout_done(state: dict, workout: str = None) -> dict:
 
     # Mantém current_index em sincronia com a agenda
     if workout in WORKOUT_SEQUENCE:
-        state["current_index"] = (WORKOUT_SEQUENCE.index(workout) + 1) % 4
+        state["current_index"] = (WORKOUT_SEQUENCE.index(workout) + 1) % len(WORKOUT_SEQUENCE)
 
     return state
