@@ -568,6 +568,7 @@ def _render_picker(state: dict, save_fn):
 
     st.markdown("---")
     st.markdown("### Qual treino hoje?")
+    st.caption("Meta: 4 treinos base (seg, ter, qui, sáb). Bônus E opcional na quarta ou sexta — sem cobrança.")
 
     # Todos os botões em laranja. O app não prescreve treino do dia — Bruno
     # escolhe (pedido de 25/07/2026).
@@ -596,7 +597,8 @@ def _render_picker(state: dict, save_fn):
 
     for letter in ("A", "B", "C", "D"):
         _pick_workout(letter)
-    st.caption("⚡ curta = par principal + perna + core, ~22 min. Conta como o treino do ciclo.")
+    st.caption("⚡ Versão curta usa os blocos BASE e CORE da ficha existente.")
+    st.info("Bônus E: opcional; registro rápido disponível abaixo. Não inclui ficha própria até a divisão atual ser conferida.")
 
 
     # ── Registrar treino já feito (sem detalhar séries) ─────────────────────────
@@ -611,6 +613,8 @@ def _render_picker(state: dict, save_fn):
             st.caption(q_msg)
         q_dur = st.number_input("Duração (min)", min_value=5, max_value=180, value=30, step=5,
                                 key="quick_mark_dur")
+        if quick == "E" and today.weekday() not in (2, 4):
+            st.caption("Preferência: bônus na quarta ou sexta. Registro manual permitido em outros dias.")
         if st.button(f"Registrar Treino {quick}", use_container_width=True, key="quick_mark_btn"):
             mark_workout_done(state, workout=quick)
             save_fn(state)
